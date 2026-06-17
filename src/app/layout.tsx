@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
 import { Playfair_Display, Inter } from "next/font/google";
 import "./globals.css";
-import Header from "@/components/Header";
-import Footer from "@/components/Footer";
-import WhatsAppButton from "@/components/WhatsAppButton";
-import MobileNav from "@/components/MobileNav";
 import { siteConfig } from "@/data/config";
 
 const playfair = Playfair_Display({
@@ -52,11 +48,7 @@ export default function RootLayout({
   return (
     <html lang="tr" className={`${playfair.variable} ${inter.variable}`}>
       <body className="min-h-screen flex flex-col bg-background">
-        <Header />
-        <main className="flex-1 pb-20 md:pb-0">{children}</main>
-        <Footer />
-        <WhatsAppButton />
-        <MobileNav />
+        {children}
       </body>
     </html>
   );
