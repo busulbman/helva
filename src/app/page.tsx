@@ -1,65 +1,257 @@
-import Image from "next/image";
+import Link from "next/link";
+import { getCategories, getBestsellers } from "@/lib/data";
+import { siteConfig } from "@/data/config";
+import CategoryCard from "@/components/CategoryCard";
+import ProductCard from "@/components/ProductCard";
+import ProductImage from "@/components/ProductImage";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+export const revalidate = 60;
+
+export default async function HomePage() {
+  const [categories, bestsellers] = await Promise.all([
+    getCategories(),
+    getBestsellers(),
+  ]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <>
+      {/* Hero Section */}
+      <section className="relative bg-gradient-to-br from-primary via-primary-dark to-primary overflow-hidden">
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute inset-0" style={{
+            backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`
+          }} />
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="max-w-7xl mx-auto px-4 py-16 md:py-24 lg:py-32 relative">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-2 text-white/90 text-sm mb-6">
+              <span className="w-2 h-2 bg-accent rounded-full" />
+              1950'den beri geleneksel lezzet
+            </div>
+
+            <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
+              {siteConfig.name}
+            </h1>
+
+            <p className="text-xl md:text-2xl text-white/90 mb-8 font-light">
+              {siteConfig.slogan}
+            </p>
+
+            <p className="text-white/80 mb-8 max-w-lg">
+              El emeği göz nuru, geleneksel tariflerle hazırlanan çekme helvalarımızı
+              keşfedin. Her lokmada Osmanlı'nın eşsiz lezzeti.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-4">
+              <Link
+                href="/urunler"
+                className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent-dark text-white font-medium px-8 py-4 rounded-lg transition-all hover:-translate-y-0.5"
+              >
+                Ürünleri Keşfet
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </Link>
+              <Link
+                href="/hakkimizda"
+                className="inline-flex items-center justify-center gap-2 bg-white/10 hover:bg-white/20 text-white font-medium px-8 py-4 rounded-lg transition-all border border-white/30"
+              >
+                Hikayemiz
+              </Link>
+            </div>
+          </div>
         </div>
-      </main>
-    </div>
+
+        {/* Decorative elements */}
+        <div className="absolute right-0 bottom-0 w-1/2 h-full hidden lg:block">
+          <div className="absolute right-20 bottom-10 w-72 h-72 bg-accent/20 rounded-full blur-3xl" />
+          <div className="absolute right-40 top-20 w-48 h-48 bg-white/10 rounded-full blur-2xl" />
+        </div>
+      </section>
+
+      {/* Categories Section */}
+      <section className="py-16 md:py-24 bg-cream">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="font-serif text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Kategoriler
+            </h2>
+            <p className="text-gray-600 max-w-2xl mx-auto">
+              Geleneksel tariflerle hazırlanan ürünlerimizi keşfedin
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {categories.map((category) => (
+              <CategoryCard key={category.id} category={category} />
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Bestsellers Section */}
+      <section className="py-16 md:py-24">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-12">
+            <div>
+              <h2 className="font-serif text-3xl md:text-4xl font-bold text-gray-900 mb-2">
+                Çok Satanlar
+              </h2>
+              <p className="text-gray-600">En beğenilen ürünlerimiz</p>
+            </div>
+            <Link
+              href="/urunler"
+              className="hidden sm:inline-flex items-center gap-2 text-primary hover:text-primary-dark font-medium transition-colors"
+            >
+              Tümünü Gör
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {bestsellers.slice(0, 4).map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+
+          <div className="text-center mt-8 sm:hidden">
+            <Link href="/urunler" className="btn-secondary inline-flex items-center gap-2">
+              Tümünü Gör
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* About Strip */}
+      <section className="py-16 md:py-24 bg-secondary">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="grid md:grid-cols-2 gap-12 items-center">
+            <div>
+              <h2 className="font-serif text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+                Geleneksel Üretim,<br />Eşsiz Lezzet
+              </h2>
+              <p className="text-gray-700 mb-6 leading-relaxed">
+                Yarım asrı aşkın tecrübemizle, dedelerimizden miras kalan geleneksel tarifleri
+                modern hijyen standartlarıyla birleştiriyoruz. Her bir ürünümüz, ustalarımızın
+                el emeğiyle özenle hazırlanır.
+              </p>
+              <ul className="space-y-3 mb-8">
+                <li className="flex items-center gap-3 text-gray-700">
+                  <span className="w-6 h-6 bg-accent rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                  %100 Doğal Malzemeler
+                </li>
+                <li className="flex items-center gap-3 text-gray-700">
+                  <span className="w-6 h-6 bg-accent rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                  Geleneksel El Yapımı Üretim
+                </li>
+                <li className="flex items-center gap-3 text-gray-700">
+                  <span className="w-6 h-6 bg-accent rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </span>
+                  Katkı Maddesi Yok
+                </li>
+              </ul>
+              <Link href="/hakkimizda" className="btn-primary inline-flex items-center gap-2">
+                Hikayemizi Okuyun
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+
+            <div className="relative">
+              <div className="aspect-square rounded-2xl bg-cream overflow-hidden relative">
+                <ProductImage
+                  src="/images/products/sade-cekme-helva.jpg"
+                  alt="Geleneksel çekme helva üretimi"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
+              </div>
+              <div className="absolute -bottom-6 -left-6 bg-white rounded-xl shadow-lg p-6 hidden md:block">
+                <div className="text-4xl font-serif font-bold text-primary">70+</div>
+                <div className="text-gray-600 text-sm">Yıllık Tecrübe</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Location Strip */}
+      <section className="py-16 md:py-24">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="bg-primary rounded-2xl overflow-hidden">
+            <div className="grid md:grid-cols-2">
+              <div className="p-8 md:p-12 text-white">
+                <h2 className="font-serif text-3xl font-bold mb-4">Bizi Ziyaret Edin</h2>
+                <p className="text-white/80 mb-6">
+                  Kastamonu'nun tarihi merkezinde, Nasrullah Camii karşısında sizleri bekliyoruz.
+                </p>
+
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <svg className="w-6 h-6 text-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <div>
+                      <div className="font-medium">Adres</div>
+                      <div className="text-white/80 text-sm">{siteConfig.address.full}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <svg className="w-6 h-6 text-accent flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <div>
+                      <div className="font-medium">Çalışma Saatleri</div>
+                      <div className="text-white/80 text-sm">{siteConfig.workingHours.display}</div>
+                      <div className="text-white/60 text-sm">Pazar: {siteConfig.workingHours.sunday}</div>
+                    </div>
+                  </div>
+                </div>
+
+                <Link
+                  href="/iletisim"
+                  className="inline-flex items-center gap-2 mt-8 bg-accent hover:bg-accent-dark text-white font-medium px-6 py-3 rounded-lg transition-all"
+                >
+                  İletişim Bilgileri
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+              </div>
+
+              <div className="h-64 md:h-auto bg-cream relative overflow-hidden">
+                <ProductImage
+                  src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80"
+                  alt="Sipahioğlu Çekme Helva mağazası"
+                  fill
+                  sizes="(max-width: 768px) 100vw, 50vw"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </>
   );
 }
