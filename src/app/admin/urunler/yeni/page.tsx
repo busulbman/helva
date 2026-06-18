@@ -378,7 +378,7 @@ export default function NewProductPage() {
             <label className="aspect-square border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:border-primary transition-colors">
               <input
                 type="file"
-                accept="image/*"
+                accept=".png,.jpg,.jpeg,.webp,image/png,image/jpeg,image/webp"
                 multiple
                 onChange={handleImageSelect}
                 className="hidden"
@@ -391,7 +391,7 @@ export default function NewProductPage() {
           </div>
 
           <p className="text-sm text-gray-500">
-            PNG veya JPG formatında görseller yükleyebilirsiniz. Görseller Firebase Storage'a yüklenir.
+            PNG, JPG, JPEG veya WEBP formatında görseller yükleyebilirsiniz. Görseller Firebase Storage&apos;a yüklenir.
           </p>
         </div>
 

@@ -28,6 +28,7 @@ const firebaseConfig = {
   storageBucket: "sipahioglu-helva-c4aec.firebasestorage.app",
   messagingSenderId: "1032412472187",
   appId: "1:1032412472187:web:4f8d7230911e88ac1c53de",
+  measurementId: "G-VDS8Z9DHE8",
 };
 
 // Initialize Firebase (prevent multiple initializations)
@@ -296,12 +297,34 @@ export async function toggleProductActive(id: string, isActive: boolean): Promis
 
 export async function uploadImage(file: File, path: string): Promise<string> {
   try {
+    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    if (!allowedTypes.includes(file.type)) {
+      throw new Error(`Desteklenmeyen dosya formatı: ${file.type}. PNG, JPG veya WEBP kullanın.`);
+    }
+
+    const maxSize = 10 * 1024 * 1024; // 10MB
+    if (file.size > maxSize) {
+      throw new Error("Dosya boyutu 10MB'dan büyük olamaz.");
+    }
+
     const storageRef = ref(storage, path);
     const snapshot = await uploadBytes(storageRef, file);
     const downloadURL = await getDownloadURL(snapshot.ref);
     return downloadURL;
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error uploading image:", error);
+    if (error instanceof Error) {
+      if (error.message.includes("storage/unauthorized")) {
+        throw new Error("Yükleme yetkisi yok. Firebase Storage kurallarını kontrol edin.");
+      }
+      if (error.message.includes("storage/canceled")) {
+        throw new Error("Yükleme iptal edildi.");
+      }
+      if (error.message.includes("storage/unknown")) {
+        throw new Error("Bilinmeyen bir hata oluştu. İnternet bağlantınızı kontrol edin.");
+      }
+      throw error;
+    }
     throw new Error("Görsel yüklenemedi. Lütfen tekrar deneyin.");
   }
 }
@@ -333,10 +356,13 @@ export async function deleteImage(url: string): Promise<void> {
 
 export async function testFirebaseConnection(): Promise<boolean> {
   try {
-    const categoriesRef = collection(db, "categories");
-    await getDocs(query(categoriesRef));
+    const testRef = collection(db, "_connection_test");
+    await getDocs(testRef);
     return true;
-  } catch (error) {
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message.includes("Missing or insufficient permissions")) {
+      return true;
+    }
     console.error("Firebase connection test failed:", error);
     return false;
   }

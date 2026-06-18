@@ -14,16 +14,12 @@ export default function Header() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-10 h-10 md:w-12 md:h-12 bg-primary rounded-full flex items-center justify-center">
-              <span className="text-white font-serif text-lg md:text-xl font-bold">S</span>
-            </div>
-            <div className="hidden sm:block">
-              <h1 className="font-serif text-primary text-lg md:text-xl font-semibold leading-tight">
-                Sipahioğlu
-              </h1>
-              <p className="text-xs text-gray-600 -mt-1">Çekme Helva</p>
-            </div>
+          <Link href="/" className="flex items-center">
+            <img
+              src="/assets/logo.png"
+              alt="Sipahioğlu Çekme Helva"
+              className="h-12 md:h-16 w-auto object-contain"
+            />
           </Link>
 
           {/* Desktop Navigation */}

@@ -20,13 +20,12 @@ function AdminSidebar() {
     <aside className="w-64 bg-white border-r border-gray-200 min-h-screen hidden md:block">
       <div className="p-4 border-b border-gray-200">
         <Link href="/admin" className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-primary rounded-full flex items-center justify-center">
-            <span className="text-white font-serif text-lg font-bold">S</span>
-          </div>
-          <div>
-            <h1 className="font-serif text-primary font-semibold">Admin Panel</h1>
-            <p className="text-xs text-gray-500">Sipahioğlu</p>
-          </div>
+          <img
+            src="/assets/logo.png"
+            alt="Sipahioğlu"
+            className="h-10 w-auto object-contain"
+          />
+          <span className="text-xs text-gray-500 font-medium">Admin</span>
         </Link>
       </div>
 
@@ -86,10 +85,12 @@ function MobileHeader() {
   return (
     <header className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
       <Link href="/admin" className="flex items-center gap-2">
-        <div className="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
-          <span className="text-white font-serif font-bold">S</span>
-        </div>
-        <span className="font-serif text-primary font-semibold">Admin</span>
+        <img
+          src="/assets/logo.png"
+          alt="Sipahioğlu"
+          className="h-8 w-auto object-contain"
+        />
+        <span className="text-xs text-gray-500 font-medium">Admin</span>
       </Link>
       <div className="flex items-center gap-2">
         <Link href="/" className="p-2 text-gray-600">
@@ -160,11 +161,12 @@ function LoginForm() {
     <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-primary rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-white font-serif text-2xl font-bold">S</span>
-          </div>
+          <img
+            src="/assets/logo.png"
+            alt="Sipahioğlu Çekme Helva"
+            className="h-20 w-auto object-contain mx-auto mb-4"
+          />
           <h1 className="font-serif text-2xl font-bold text-gray-900">Admin Paneli</h1>
-          <p className="text-gray-600 mt-2">Sipahioğlu Çekme Helva</p>
         </div>
 
         <form onSubmit={handleSubmit}>

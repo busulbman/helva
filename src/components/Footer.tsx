@@ -9,15 +9,13 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div>
-            <div className="flex items-center gap-2 mb-4">
-              <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
-                <span className="text-primary font-serif text-lg font-bold">S</span>
-              </div>
-              <div>
-                <h3 className="font-serif text-xl font-semibold">Sipahioğlu</h3>
-                <p className="text-sm text-white/70 -mt-1">Çekme Helva</p>
-              </div>
-            </div>
+            <Link href="/" className="inline-block mb-4">
+              <img
+                src="/assets/logo.png"
+                alt="Sipahioğlu Çekme Helva"
+                className="h-16 w-auto object-contain brightness-0 invert"
+              />
+            </Link>
             <p className="text-white/80 text-sm leading-relaxed">
               {siteConfig.slogan}. Yılların tecrübesiyle, geleneksel tariflerle
               hazırlanan el yapımı çekme helvalar.
