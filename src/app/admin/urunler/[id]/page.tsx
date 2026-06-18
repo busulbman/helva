@@ -3,21 +3,15 @@
 import { useState, useEffect, use } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getCategories, getProducts, updateProduct, DbCategory, DbProduct } from "@/lib/supabase";
-import { uploadToImgbb } from "@/lib/imgbb";
-
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
+import {
+  getCategories,
+  getProducts,
+  updateProduct,
+  uploadProductImage,
+  generateSlug,
+  DbCategory,
+  DbProduct,
+} from "@/lib/firebase";
 
 interface ImageUpload {
   id: string;
@@ -25,6 +19,7 @@ interface ImageUpload {
   url?: string;
   uploading: boolean;
   preview: string;
+  error?: string;
 }
 
 export default function EditProductPage({
@@ -38,6 +33,8 @@ export default function EditProductPage({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [images, setImages] = useState<ImageUpload[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [originalProduct, setOriginalProduct] = useState<DbProduct | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -65,10 +62,12 @@ export default function EditProductPage({
 
         const product = productsData.find((p) => p.id === id);
         if (!product) {
-          alert("Ürün bulunamadı");
+          setError("Ürün bulunamadı");
           router.push("/admin/urunler");
           return;
         }
+
+        setOriginalProduct(product);
 
         setFormData({
           name: product.name,
@@ -85,15 +84,16 @@ export default function EditProductPage({
         });
 
         setImages(
-          product.images.map((url, index) => ({
+          (product.images || []).map((url, index) => ({
             id: `existing-${index}`,
             url,
             uploading: false,
             preview: url,
           }))
         );
-      } catch (error) {
-        console.error("Error:", error);
+      } catch (err) {
+        setError("Veriler yüklenirken bir hata oluştu.");
+        console.error("Error:", err);
       } finally {
         setLoading(false);
       }
@@ -115,29 +115,33 @@ export default function EditProductPage({
     setImages((prev) => [...prev, ...newImages]);
   }
 
-  async function uploadImage(imageUpload: ImageUpload) {
-    if (!imageUpload.file) return;
+  async function uploadImage(imageUpload: ImageUpload, productSlug: string) {
+    if (!imageUpload.file) return imageUpload.url;
 
     setImages((prev) =>
       prev.map((img) =>
-        img.id === imageUpload.id ? { ...img, uploading: true } : img
+        img.id === imageUpload.id ? { ...img, uploading: true, error: undefined } : img
       )
     );
 
     try {
-      const url = await uploadToImgbb(imageUpload.file);
+      const url = await uploadProductImage(imageUpload.file, productSlug);
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageUpload.id ? { ...img, url, uploading: false } : img
         )
       );
-    } catch (error) {
-      alert("Görsel yüklenemedi");
+      return url;
+    } catch (err) {
       setImages((prev) =>
         prev.map((img) =>
-          img.id === imageUpload.id ? { ...img, uploading: false } : img
+          img.id === imageUpload.id
+            ? { ...img, uploading: false, error: "Yüklenemedi" }
+            : img
         )
       );
+      console.error("Image upload error:", err);
+      return null;
     }
   }
 
@@ -147,24 +151,37 @@ export default function EditProductPage({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
 
-    // Upload pending images
-    const pendingUploads = images.filter((img) => img.file && !img.url);
-    if (pendingUploads.length > 0) {
-      setSaving(true);
-      await Promise.all(pendingUploads.map(uploadImage));
+    if (!formData.name.trim()) {
+      setError("Ürün adı gerekli");
+      return;
+    }
+
+    if (!formData.category_id) {
+      setError("Lütfen bir kategori seçin");
+      return;
     }
 
     setSaving(true);
 
     try {
-      const imageUrls = images
-        .map((img) => img.url)
-        .filter((url): url is string => !!url);
+      const productSlug = generateSlug(formData.name);
+
+      // Upload new images and collect all URLs
+      const imageUrls: string[] = [];
+      for (const img of images) {
+        if (img.url) {
+          imageUrls.push(img.url);
+        } else if (img.file) {
+          const url = await uploadImage(img, productSlug);
+          if (url) imageUrls.push(url);
+        }
+      }
 
       await updateProduct(id, {
         name: formData.name,
-        slug: generateSlug(formData.name),
+        slug: productSlug,
         category_id: formData.category_id,
         subcategory: formData.subcategory || null,
         price: parseFloat(formData.price) || 0,
@@ -179,9 +196,9 @@ export default function EditProductPage({
       });
 
       router.push("/admin/urunler");
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Ürün güncellenemedi. Lütfen tekrar deneyin.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ürün güncellenemedi. Lütfen tekrar deneyin.");
+      console.error("Error:", err);
     } finally {
       setSaving(false);
     }
@@ -214,9 +231,15 @@ export default function EditProductPage({
         </Link>
         <div>
           <h1 className="text-2xl md:text-3xl font-serif font-bold text-gray-900">Ürün Düzenle</h1>
-          <p className="text-gray-600 mt-1">{formData.name}</p>
+          <p className="text-gray-600 mt-1">{formData.name || "Yükleniyor..."}</p>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="max-w-3xl">
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
@@ -362,6 +385,11 @@ export default function EditProductPage({
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
                   </div>
                 )}
+                {img.error && (
+                  <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center">
+                    <span className="text-white text-xs">{img.error}</span>
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => removeImage(img.id)}
@@ -388,6 +416,10 @@ export default function EditProductPage({
               <span className="text-sm text-gray-500">Görsel Ekle</span>
             </label>
           </div>
+
+          <p className="text-sm text-gray-500">
+            PNG veya JPG formatında görseller yükleyebilirsiniz. Görseller Firebase Storage'a yüklenir.
+          </p>
         </div>
 
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
@@ -436,8 +468,11 @@ export default function EditProductPage({
           <button
             type="submit"
             disabled={saving}
-            className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
+            className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
+            {saving && (
+              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+            )}
             {saving ? "Kaydediliyor..." : "Değişiklikleri Kaydet"}
           </button>
         </div>

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { getCategories, getProducts, DbCategory, DbProduct } from "@/lib/supabase";
+import { getCategories, getProducts, testFirebaseConnection, DbCategory, DbProduct } from "@/lib/firebase";
 
 interface Stats {
   totalProducts: number;
@@ -20,10 +20,22 @@ export default function AdminDashboard() {
   });
   const [recentProducts, setRecentProducts] = useState<DbProduct[]>([]);
   const [loading, setLoading] = useState(true);
+  const [firebaseConnected, setFirebaseConnected] = useState<boolean | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     async function fetchData() {
       try {
+        // Test Firebase connection
+        const connected = await testFirebaseConnection();
+        setFirebaseConnected(connected);
+
+        if (!connected) {
+          setError("Firebase bağlantısı kurulamadı. Lütfen ayarları kontrol edin.");
+          setLoading(false);
+          return;
+        }
+
         const [categories, products] = await Promise.all([
           getCategories(),
           getProducts(true),
@@ -40,8 +52,9 @@ export default function AdminDashboard() {
         });
 
         setRecentProducts(products.slice(0, 5));
-      } catch (error) {
-        console.error("Error fetching data:", error);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError("Veriler yüklenirken bir hata oluştu.");
       } finally {
         setLoading(false);
       }
@@ -64,6 +77,24 @@ export default function AdminDashboard() {
         <h1 className="text-2xl md:text-3xl font-serif font-bold text-gray-900">Dashboard</h1>
         <p className="text-gray-600 mt-1">Hoş geldiniz! İşte sitenizin özeti.</p>
       </div>
+
+      {/* Firebase Connection Status */}
+      <div className={`mb-6 p-4 rounded-lg flex items-center gap-3 ${
+        firebaseConnected
+          ? "bg-green-50 border border-green-200 text-green-700"
+          : "bg-red-50 border border-red-200 text-red-700"
+      }`}>
+        <div className={`w-3 h-3 rounded-full ${firebaseConnected ? "bg-green-500" : "bg-red-500"}`}></div>
+        <span>
+          Firebase: {firebaseConnected ? "Bağlı" : "Bağlantı Yok"}
+        </span>
+      </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Stats Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
@@ -177,7 +208,7 @@ export default function AdminDashboard() {
             recentProducts.map((product) => (
               <div key={product.id} className="p-4 flex items-center gap-4">
                 <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                  {product.images[0] ? (
+                  {product.images?.[0] ? (
                     <img
                       src={product.images[0]}
                       alt={product.name}

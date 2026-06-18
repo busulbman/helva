@@ -6,22 +6,10 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
+  uploadCategoryImage,
+  generateSlug,
   DbCategory,
-} from "@/lib/supabase";
-import { uploadToImgbb } from "@/lib/imgbb";
-
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
+} from "@/lib/firebase";
 
 export default function CategoriesPage() {
   const [categories, setCategories] = useState<DbCategory[]>([]);
@@ -30,6 +18,7 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<DbCategory | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -38,22 +27,28 @@ export default function CategoriesPage() {
     parent_id: "",
   });
 
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+
   useEffect(() => {
     fetchCategories();
   }, []);
 
   async function fetchCategories() {
+    setLoading(true);
+    setError(null);
     try {
       const data = await getCategories();
       setCategories(data);
-    } catch (error) {
-      console.error("Error:", error);
+    } catch (err) {
+      setError("Kategoriler yüklenirken bir hata oluştu.");
+      console.error("Error:", err);
     } finally {
       setLoading(false);
     }
   }
 
   function openModal(category?: DbCategory) {
+    setError(null);
     if (category) {
       setEditingCategory(category);
       setFormData({
@@ -62,9 +57,11 @@ export default function CategoriesPage() {
         image: category.image,
         parent_id: category.parent_id || "",
       });
+      setImagePreview(category.image || null);
     } else {
       setEditingCategory(null);
       setFormData({ name: "", description: "", image: "", parent_id: "" });
+      setImagePreview(null);
     }
     setShowModal(true);
   }
@@ -73,18 +70,29 @@ export default function CategoriesPage() {
     setShowModal(false);
     setEditingCategory(null);
     setFormData({ name: "", description: "", image: "", parent_id: "" });
+    setImagePreview(null);
+    setError(null);
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Show preview immediately
+    const previewUrl = URL.createObjectURL(file);
+    setImagePreview(previewUrl);
+
     setUploading(true);
+    setError(null);
+
     try {
-      const url = await uploadToImgbb(file);
+      const slug = generateSlug(formData.name || "kategori");
+      const url = await uploadCategoryImage(file, slug);
       setFormData((prev) => ({ ...prev, image: url }));
-    } catch (error) {
-      alert("Görsel yüklenemedi. Lütfen tekrar deneyin.");
+    } catch (err) {
+      setError("Görsel yüklenemedi. Lütfen tekrar deneyin.");
+      setImagePreview(null);
+      console.error(err);
     } finally {
       setUploading(false);
     }
@@ -93,6 +101,7 @@ export default function CategoriesPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSaving(true);
+    setError(null);
 
     try {
       const slug = generateSlug(formData.name);
@@ -112,9 +121,9 @@ export default function CategoriesPage() {
 
       await fetchCategories();
       closeModal();
-    } catch (error) {
-      console.error("Error saving category:", error);
-      alert("Bir hata oluştu. Lütfen tekrar deneyin.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bir hata oluştu");
+      console.error("Error saving category:", err);
     } finally {
       setSaving(false);
     }
@@ -123,12 +132,13 @@ export default function CategoriesPage() {
   async function handleDelete(id: string) {
     if (!confirm("Bu kategoriyi silmek istediğinizden emin misiniz?")) return;
 
+    setError(null);
     try {
       await deleteCategory(id);
       await fetchCategories();
-    } catch (error) {
-      console.error("Error deleting category:", error);
-      alert("Kategori silinemedi. Bu kategoriye ait ürünler olabilir.");
+    } catch (err) {
+      setError("Kategori silinemedi. Bu kategoriye ait ürünler olabilir.");
+      console.error("Error deleting category:", err);
     }
   }
 
@@ -161,6 +171,13 @@ export default function CategoriesPage() {
           <span className="hidden sm:inline">Yeni Kategori</span>
         </button>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Categories List */}
       <div className="bg-white rounded-xl shadow-sm">
@@ -275,6 +292,12 @@ export default function CategoriesPage() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-4">
+              {error && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                  {error}
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Kategori Adı *
@@ -327,10 +350,10 @@ export default function CategoriesPage() {
                   Görsel
                 </label>
                 <div className="flex items-center gap-4">
-                  {formData.image && (
+                  {(imagePreview || formData.image) && (
                     <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
                       <img
-                        src={formData.image}
+                        src={imagePreview || formData.image}
                         alt="Preview"
                         className="w-full h-full object-cover"
                       />
@@ -370,7 +393,7 @@ export default function CategoriesPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving}
+                  disabled={saving || uploading}
                   className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
                 >
                   {saving ? "Kaydediliyor..." : editingCategory ? "Güncelle" : "Ekle"}

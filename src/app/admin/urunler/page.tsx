@@ -10,7 +10,7 @@ import {
   updateProduct,
   DbProduct,
   DbCategory,
-} from "@/lib/supabase";
+} from "@/lib/firebase";
 
 export default function ProductsPage() {
   const [products, setProducts] = useState<DbProduct[]>([]);
@@ -19,12 +19,15 @@ export default function ProductsPage() {
   const [filter, setFilter] = useState<"all" | "active" | "inactive">("all");
   const [editingPrice, setEditingPrice] = useState<string | null>(null);
   const [newPrice, setNewPrice] = useState("");
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchData();
   }, []);
 
   async function fetchData() {
+    setLoading(true);
+    setError(null);
     try {
       const [productsData, categoriesData] = await Promise.all([
         getProducts(true),
@@ -32,8 +35,9 @@ export default function ProductsPage() {
       ]);
       setProducts(productsData);
       setCategories(categoriesData);
-    } catch (error) {
-      console.error("Error:", error);
+    } catch (err) {
+      setError("Veriler yüklenirken bir hata oluştu.");
+      console.error("Error:", err);
     } finally {
       setLoading(false);
     }
@@ -45,42 +49,45 @@ export default function ProductsPage() {
   }
 
   async function handleToggleActive(product: DbProduct) {
+    setError(null);
     try {
       await toggleProductActive(product.id, !product.is_active);
       await fetchData();
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Bir hata oluştu");
+    } catch (err) {
+      setError("Ürün durumu güncellenemedi.");
+      console.error("Error:", err);
     }
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Bu ürünü silmek istediğinizden emin misiniz?")) return;
 
+    setError(null);
     try {
       await deleteProduct(id);
       await fetchData();
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Ürün silinemedi");
+    } catch (err) {
+      setError("Ürün silinemedi.");
+      console.error("Error:", err);
     }
   }
 
   async function handlePriceUpdate(productId: string) {
     const price = parseFloat(newPrice);
     if (isNaN(price) || price < 0) {
-      alert("Geçerli bir fiyat girin");
+      setError("Geçerli bir fiyat girin");
       return;
     }
 
+    setError(null);
     try {
       await updateProduct(productId, { price });
       await fetchData();
       setEditingPrice(null);
       setNewPrice("");
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Fiyat güncellenemedi");
+    } catch (err) {
+      setError("Fiyat güncellenemedi.");
+      console.error("Error:", err);
     }
   }
 
@@ -115,6 +122,13 @@ export default function ProductsPage() {
           Yeni Ürün
         </Link>
       </div>
+
+      {/* Error Message */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Filter */}
       <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
@@ -185,7 +199,7 @@ export default function ProductsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                          {product.images[0] ? (
+                          {product.images?.[0] ? (
                             <img
                               src={product.images[0]}
                               alt={product.name}

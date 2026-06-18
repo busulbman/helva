@@ -3,21 +3,13 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { getCategories, createProduct, DbCategory } from "@/lib/supabase";
-import { uploadToImgbb } from "@/lib/imgbb";
-
-function generateSlug(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/ğ/g, "g")
-    .replace(/ü/g, "u")
-    .replace(/ş/g, "s")
-    .replace(/ı/g, "i")
-    .replace(/ö/g, "o")
-    .replace(/ç/g, "c")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-}
+import {
+  getCategories,
+  createProduct,
+  uploadProductImage,
+  generateSlug,
+  DbCategory,
+} from "@/lib/firebase";
 
 interface ImageUpload {
   id: string;
@@ -25,6 +17,7 @@ interface ImageUpload {
   url?: string;
   uploading: boolean;
   preview: string;
+  error?: string;
 }
 
 export default function NewProductPage() {
@@ -33,6 +26,7 @@ export default function NewProductPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [images, setImages] = useState<ImageUpload[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -52,8 +46,9 @@ export default function NewProductPage() {
       try {
         const data = await getCategories();
         setCategories(data);
-      } catch (error) {
-        console.error("Error:", error);
+      } catch (err) {
+        setError("Kategoriler yüklenemedi.");
+        console.error("Error:", err);
       } finally {
         setLoading(false);
       }
@@ -75,29 +70,33 @@ export default function NewProductPage() {
     setImages((prev) => [...prev, ...newImages]);
   }
 
-  async function uploadImage(imageUpload: ImageUpload) {
+  async function uploadImage(imageUpload: ImageUpload, productSlug: string) {
     if (!imageUpload.file) return;
 
     setImages((prev) =>
       prev.map((img) =>
-        img.id === imageUpload.id ? { ...img, uploading: true } : img
+        img.id === imageUpload.id ? { ...img, uploading: true, error: undefined } : img
       )
     );
 
     try {
-      const url = await uploadToImgbb(imageUpload.file);
+      const url = await uploadProductImage(imageUpload.file, productSlug);
       setImages((prev) =>
         prev.map((img) =>
           img.id === imageUpload.id ? { ...img, url, uploading: false } : img
         )
       );
-    } catch (error) {
-      alert("Görsel yüklenemedi");
+      return url;
+    } catch (err) {
       setImages((prev) =>
         prev.map((img) =>
-          img.id === imageUpload.id ? { ...img, uploading: false } : img
+          img.id === imageUpload.id
+            ? { ...img, uploading: false, error: "Yüklenemedi" }
+            : img
         )
       );
+      console.error("Image upload error:", err);
+      return null;
     }
   }
 
@@ -107,29 +106,42 @@ export default function NewProductPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setError(null);
 
-    if (!formData.category_id) {
-      alert("Lütfen bir kategori seçin");
+    if (!formData.name.trim()) {
+      setError("Ürün adı gerekli");
       return;
     }
 
-    // Upload all images that haven't been uploaded yet
-    const pendingUploads = images.filter((img) => img.file && !img.url);
-    if (pendingUploads.length > 0) {
-      setSaving(true);
-      await Promise.all(pendingUploads.map(uploadImage));
+    if (!formData.category_id) {
+      setError("Lütfen bir kategori seçin");
+      return;
+    }
+
+    if (!formData.price || parseFloat(formData.price) <= 0) {
+      setError("Geçerli bir fiyat girin");
+      return;
     }
 
     setSaving(true);
 
     try {
-      const imageUrls = images
-        .map((img) => img.url)
-        .filter((url): url is string => !!url);
+      const productSlug = generateSlug(formData.name);
+
+      // Upload all images
+      const imageUrls: string[] = [];
+      for (const img of images) {
+        if (img.url) {
+          imageUrls.push(img.url);
+        } else if (img.file) {
+          const url = await uploadImage(img, productSlug);
+          if (url) imageUrls.push(url);
+        }
+      }
 
       await createProduct({
         name: formData.name,
-        slug: generateSlug(formData.name),
+        slug: productSlug,
         category_id: formData.category_id,
         subcategory: formData.subcategory || null,
         price: parseFloat(formData.price) || 0,
@@ -144,9 +156,9 @@ export default function NewProductPage() {
       });
 
       router.push("/admin/urunler");
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Ürün eklenemedi. Lütfen tekrar deneyin.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Ürün eklenemedi. Lütfen tekrar deneyin.");
+      console.error("Error:", err);
     } finally {
       setSaving(false);
     }
@@ -182,6 +194,12 @@ export default function NewProductPage() {
           <p className="text-gray-600 mt-1">Yeni bir ürün ekleyin</p>
         </div>
       </div>
+
+      {error && (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          {error}
+        </div>
+      )}
 
       <form onSubmit={handleSubmit} className="max-w-3xl">
         <div className="bg-white rounded-xl shadow-sm p-6 mb-6">
@@ -333,11 +351,16 @@ export default function NewProductPage() {
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>
                   </div>
                 )}
-                {img.url && (
+                {img.url && !img.uploading && (
                   <div className="absolute top-2 right-2">
                     <svg className="w-6 h-6 text-green-500 bg-white rounded-full" fill="currentColor" viewBox="0 0 20 20">
                       <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
                     </svg>
+                  </div>
+                )}
+                {img.error && (
+                  <div className="absolute inset-0 bg-red-500/80 flex items-center justify-center">
+                    <span className="text-white text-xs">{img.error}</span>
                   </div>
                 )}
                 <button
@@ -368,7 +391,7 @@ export default function NewProductPage() {
           </div>
 
           <p className="text-sm text-gray-500">
-            PNG veya JPG formatında görseller yükleyebilirsiniz. Görseller otomatik olarak imgbb'ye yüklenir.
+            PNG veya JPG formatında görseller yükleyebilirsiniz. Görseller Firebase Storage'a yüklenir.
           </p>
         </div>
 
@@ -408,8 +431,11 @@ export default function NewProductPage() {
           <button
             type="submit"
             disabled={saving}
-            className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
+            className="flex-1 px-6 py-3 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
           >
+            {saving && (
+              <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+            )}
             {saving ? "Kaydediliyor..." : "Ürünü Kaydet"}
           </button>
         </div>

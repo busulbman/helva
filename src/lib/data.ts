@@ -4,10 +4,9 @@ import {
   getProductBySlug as getDbProductBySlug,
   getCategoryBySlug as getDbCategoryBySlug,
   getProductsByCategory as getDbProductsByCategory,
-  isSupabaseConfigured,
   DbCategory,
   DbProduct,
-} from "./supabase";
+} from "./firebase";
 import {
   categories as staticCategories,
   products as staticProducts,
@@ -114,82 +113,73 @@ function mapStaticCategoryToDisplay(category: StaticCategory): DisplayCategory {
 }
 
 export async function getCategories(): Promise<DisplayCategory[]> {
-  if (isSupabaseConfigured) {
-    try {
-      const dbCategories = await getDbCategories();
+  try {
+    const dbCategories = await getDbCategories();
+    if (dbCategories.length > 0) {
       const parentCategories = dbCategories.filter((c) => !c.parent_id);
       return parentCategories.map((c) => mapDbCategoryToDisplay(c, dbCategories));
-    } catch (error) {
-      console.error("Supabase error, falling back to static data:", error);
     }
+  } catch (error) {
+    console.error("Firebase error, falling back to static data:", error);
   }
   return staticCategories.map(mapStaticCategoryToDisplay);
 }
 
 export async function getProducts(): Promise<DisplayProduct[]> {
-  if (isSupabaseConfigured) {
-    try {
-      const [dbProducts, dbCategories] = await Promise.all([
-        getDbProducts(false),
-        getDbCategories(),
-      ]);
+  try {
+    const [dbProducts, dbCategories] = await Promise.all([
+      getDbProducts(false),
+      getDbCategories(),
+    ]);
+    if (dbProducts.length > 0) {
       return dbProducts.map((p) => mapDbProductToDisplay(p, dbCategories));
-    } catch (error) {
-      console.error("Supabase error, falling back to static data:", error);
     }
+  } catch (error) {
+    console.error("Firebase error, falling back to static data:", error);
   }
   return staticProducts.map(mapStaticProductToDisplay);
 }
 
 export async function getProductBySlug(slug: string): Promise<DisplayProduct | null> {
-  if (isSupabaseConfigured) {
-    try {
-      const [dbProduct, dbCategories] = await Promise.all([
-        getDbProductBySlug(slug),
-        getDbCategories(),
-      ]);
-      if (dbProduct) {
-        return mapDbProductToDisplay(dbProduct, dbCategories);
-      }
-      return null;
-    } catch (error) {
-      console.error("Supabase error, falling back to static data:", error);
+  try {
+    const [dbProduct, dbCategories] = await Promise.all([
+      getDbProductBySlug(slug),
+      getDbCategories(),
+    ]);
+    if (dbProduct) {
+      return mapDbProductToDisplay(dbProduct, dbCategories);
     }
+  } catch (error) {
+    console.error("Firebase error, falling back to static data:", error);
   }
   const product = staticProducts.find((p) => p.slug === slug);
   return product ? mapStaticProductToDisplay(product) : null;
 }
 
 export async function getCategoryBySlug(slug: string): Promise<DisplayCategory | null> {
-  if (isSupabaseConfigured) {
-    try {
-      const dbCategories = await getDbCategories();
-      const category = dbCategories.find((c) => c.slug === slug);
-      if (category) {
-        return mapDbCategoryToDisplay(category, dbCategories);
-      }
-      return null;
-    } catch (error) {
-      console.error("Supabase error, falling back to static data:", error);
+  try {
+    const dbCategories = await getDbCategories();
+    const category = dbCategories.find((c) => c.slug === slug);
+    if (category) {
+      return mapDbCategoryToDisplay(category, dbCategories);
     }
+  } catch (error) {
+    console.error("Firebase error, falling back to static data:", error);
   }
   const category = staticCategories.find((c) => c.slug === slug);
   return category ? mapStaticCategoryToDisplay(category) : null;
 }
 
 export async function getProductsByCategory(categorySlug: string): Promise<DisplayProduct[]> {
-  if (isSupabaseConfigured) {
-    try {
-      const dbCategories = await getDbCategories();
-      const category = dbCategories.find((c) => c.slug === categorySlug);
-      if (category) {
-        const dbProducts = await getDbProductsByCategory(category.id);
-        return dbProducts.map((p) => mapDbProductToDisplay(p, dbCategories));
-      }
-      return [];
-    } catch (error) {
-      console.error("Supabase error, falling back to static data:", error);
+  try {
+    const dbCategories = await getDbCategories();
+    const category = dbCategories.find((c) => c.slug === categorySlug);
+    if (category) {
+      const dbProducts = await getDbProductsByCategory(category.id);
+      return dbProducts.map((p) => mapDbProductToDisplay(p, dbCategories));
     }
+  } catch (error) {
+    console.error("Firebase error, falling back to static data:", error);
   }
   return staticProducts
     .filter((p) => p.categorySlug === categorySlug)
