@@ -79,14 +79,15 @@ export function generateSlug(name: string): string {
 export async function getCategories(): Promise<DbCategory[]> {
   try {
     const categoriesRef = collection(db, "categories");
-    const q = query(categoriesRef, orderBy("name"));
-    const snapshot = await getDocs(q);
+    const snapshot = await getDocs(categoriesRef);
 
-    return snapshot.docs.map((doc) => ({
+    const categories = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
       created_at: doc.data().created_at?.toDate() || new Date(),
     })) as DbCategory[];
+
+    return categories.sort((a, b) => a.name.localeCompare(b.name, "tr"));
   } catch (error) {
     console.error("Error fetching categories:", error);
     return [];
@@ -162,22 +163,20 @@ export async function deleteCategory(id: string): Promise<void> {
 export async function getProducts(includeInactive = false): Promise<DbProduct[]> {
   try {
     const productsRef = collection(db, "products");
-    let q;
+    const snapshot = await getDocs(productsRef);
 
-    if (includeInactive) {
-      q = query(productsRef, orderBy("name"));
-    } else {
-      q = query(productsRef, where("is_active", "==", true), orderBy("name"));
-    }
-
-    const snapshot = await getDocs(q);
-
-    return snapshot.docs.map((doc) => ({
+    let products = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
       created_at: doc.data().created_at?.toDate() || new Date(),
       updated_at: doc.data().updated_at?.toDate() || new Date(),
     })) as DbProduct[];
+
+    if (!includeInactive) {
+      products = products.filter((p) => p.is_active === true);
+    }
+
+    return products.sort((a, b) => a.name.localeCompare(b.name, "tr"));
   } catch (error) {
     console.error("Error fetching products:", error);
     return [];
@@ -187,22 +186,20 @@ export async function getProducts(includeInactive = false): Promise<DbProduct[]>
 export async function getProductBySlug(slug: string): Promise<DbProduct | null> {
   try {
     const productsRef = collection(db, "products");
-    const q = query(
-      productsRef,
-      where("slug", "==", slug),
-      where("is_active", "==", true)
-    );
+    const q = query(productsRef, where("slug", "==", slug));
     const snapshot = await getDocs(q);
 
     if (snapshot.empty) return null;
 
     const doc = snapshot.docs[0];
-    return {
+    const product = {
       id: doc.id,
       ...doc.data(),
       created_at: doc.data().created_at?.toDate() || new Date(),
       updated_at: doc.data().updated_at?.toDate() || new Date(),
     } as DbProduct;
+
+    return product.is_active ? product : null;
   } catch (error) {
     console.error("Error fetching product:", error);
     return null;
@@ -212,20 +209,19 @@ export async function getProductBySlug(slug: string): Promise<DbProduct | null> 
 export async function getProductsByCategory(categoryId: string): Promise<DbProduct[]> {
   try {
     const productsRef = collection(db, "products");
-    const q = query(
-      productsRef,
-      where("category_id", "==", categoryId),
-      where("is_active", "==", true),
-      orderBy("name")
-    );
+    const q = query(productsRef, where("category_id", "==", categoryId));
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map((doc) => ({
+    const products = snapshot.docs.map((doc) => ({
       id: doc.id,
       ...doc.data(),
       created_at: doc.data().created_at?.toDate() || new Date(),
       updated_at: doc.data().updated_at?.toDate() || new Date(),
     })) as DbProduct[];
+
+    return products
+      .filter((p) => p.is_active === true)
+      .sort((a, b) => a.name.localeCompare(b.name, "tr"));
   } catch (error) {
     console.error("Error fetching products by category:", error);
     return [];
