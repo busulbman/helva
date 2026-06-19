@@ -13,13 +13,7 @@ import {
   orderBy,
   Timestamp,
 } from "firebase/firestore";
-import {
-  getStorage,
-  ref,
-  uploadBytes,
-  getDownloadURL,
-  deleteObject,
-} from "firebase/storage";
+import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAaGguIv1OK9-BaMfp5yAbVBv9zmf9M8UQ",
@@ -293,60 +287,46 @@ export async function toggleProductActive(id: string, isActive: boolean): Promis
   return updateProduct(id, { is_active: isActive });
 }
 
-// ==================== STORAGE ====================
+// ==================== IMAGE UPLOAD (via imgbb API) ====================
 
-export async function uploadImage(file: File, path: string): Promise<string> {
+export async function uploadImage(file: File): Promise<string> {
   try {
-    const allowedTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
-    if (!allowedTypes.includes(file.type)) {
-      throw new Error(`Desteklenmeyen dosya formatı: ${file.type}. PNG, JPG veya WEBP kullanın.`);
+    const formData = new FormData();
+    formData.append("image", file);
+
+    const response = await fetch("/api/upload", {
+      method: "POST",
+      body: formData,
+    });
+
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || "Görsel yüklenemedi.");
     }
 
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      throw new Error("Dosya boyutu 10MB'dan büyük olamaz.");
-    }
-
-    const storageRef = ref(storage, path);
-    const snapshot = await uploadBytes(storageRef, file);
-    const downloadURL = await getDownloadURL(snapshot.ref);
-    return downloadURL;
+    return result.url;
   } catch (error: unknown) {
     console.error("Error uploading image:", error);
     if (error instanceof Error) {
-      if (error.message.includes("storage/unauthorized")) {
-        throw new Error("Yükleme yetkisi yok. Firebase Storage kurallarını kontrol edin.");
-      }
-      if (error.message.includes("storage/canceled")) {
-        throw new Error("Yükleme iptal edildi.");
-      }
-      if (error.message.includes("storage/unknown")) {
-        throw new Error("Bilinmeyen bir hata oluştu. İnternet bağlantınızı kontrol edin.");
-      }
       throw error;
     }
     throw new Error("Görsel yüklenemedi. Lütfen tekrar deneyin.");
   }
 }
 
-export async function uploadProductImage(file: File, productSlug: string): Promise<string> {
-  const timestamp = Date.now();
-  const extension = file.name.split(".").pop() || "jpg";
-  const path = `products/${productSlug}/${timestamp}.${extension}`;
-  return uploadImage(file, path);
+export async function uploadProductImage(file: File, _productSlug: string): Promise<string> {
+  return uploadImage(file);
 }
 
-export async function uploadCategoryImage(file: File, categorySlug: string): Promise<string> {
-  const timestamp = Date.now();
-  const extension = file.name.split(".").pop() || "jpg";
-  const path = `categories/${categorySlug}/${timestamp}.${extension}`;
-  return uploadImage(file, path);
+export async function uploadCategoryImage(file: File, _categorySlug: string): Promise<string> {
+  return uploadImage(file);
 }
 
-export async function deleteImage(url: string): Promise<void> {
+export async function deleteImage(_url: string): Promise<void> {
+  // imgbb doesn't support programmatic deletion without delete URL
+  // This is a no-op for now
   try {
-    const imageRef = ref(storage, url);
-    await deleteObject(imageRef);
   } catch (error) {
     console.error("Error deleting image:", error);
   }

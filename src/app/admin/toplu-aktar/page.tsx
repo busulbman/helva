@@ -148,10 +148,7 @@ export default function BulkImportPage() {
           type: imageBlob.type,
         });
 
-        const timestamp = Date.now();
-        const extension = product.fileName.split(".").pop() || "jpg";
-        const storagePath = `products/${product.slug}/${timestamp}.${extension}`;
-        const imageUrl = await uploadImage(imageFile, storagePath);
+        const imageUrl = await uploadImage(imageFile);
 
         await createProduct({
           name: product.productName,
