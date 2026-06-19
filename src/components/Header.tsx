@@ -1,13 +1,32 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { categories } from "@/data/products";
+import { useState, useEffect } from "react";
 import { siteConfig, generateWhatsAppLink } from "@/data/config";
+import { getCategories } from "@/lib/firebase";
+
+interface Category {
+  id: string;
+  name: string;
+  slug: string;
+}
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
+  const [categories, setCategories] = useState<Category[]>([]);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const cats = await getCategories();
+        setCategories(cats.filter(c => !c.parent_id));
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    }
+    fetchCategories();
+  }, []);
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
@@ -49,16 +68,20 @@ export default function Header() {
                   >
                     Tüm Ürünler
                   </Link>
-                  <div className="border-t border-gray-100 my-1" />
-                  {categories.map((category) => (
-                    <Link
-                      key={category.id}
-                      href={`/kategori/${category.slug}`}
-                      className="block px-4 py-2 text-gray-700 hover:bg-cream hover:text-primary transition-colors"
-                    >
-                      {category.name}
-                    </Link>
-                  ))}
+                  {categories.length > 0 && (
+                    <>
+                      <div className="border-t border-gray-100 my-1" />
+                      {categories.map((category) => (
+                        <Link
+                          key={category.id}
+                          href={`/kategori/${category.slug}`}
+                          className="block px-4 py-2 text-gray-700 hover:bg-cream hover:text-primary transition-colors"
+                        >
+                          {category.name}
+                        </Link>
+                      ))}
+                    </>
+                  )}
                 </div>
               )}
             </div>
