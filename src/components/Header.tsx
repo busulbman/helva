@@ -1,25 +1,52 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useEffect } from "react";
-import { siteConfig, generateWhatsAppLink } from "@/data/config";
+import { useState, useEffect, useRef } from "react";
+import { generateWhatsAppLink } from "@/data/config";
 import { getCategories } from "@/lib/firebase";
+import DynamicLogo from "./DynamicLogo";
 
 interface Category {
   id: string;
   name: string;
   slug: string;
+  parent_id: string | null;
 }
 
 export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isCategoryDropdownOpen, setIsCategoryDropdownOpen] = useState(false);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [allCategories, setAllCategories] = useState<Category[]>([]);
+  const closeTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleMouseEnter = () => {
+    if (closeTimeoutRef.current) {
+      clearTimeout(closeTimeoutRef.current);
+      closeTimeoutRef.current = null;
+    }
+    setIsCategoryDropdownOpen(true);
+  };
+
+  const handleMouseLeave = () => {
+    closeTimeoutRef.current = setTimeout(() => {
+      setIsCategoryDropdownOpen(false);
+    }, 300);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     async function fetchCategories() {
       try {
         const cats = await getCategories();
+        setAllCategories(cats);
         setCategories(cats.filter(c => !c.parent_id));
       } catch (error) {
         console.error("Error fetching categories:", error);
@@ -28,17 +55,16 @@ export default function Header() {
     fetchCategories();
   }, []);
 
+  const getSubcategories = (parentId: string) =>
+    allCategories.filter(c => c.parent_id === parentId);
+
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between h-16 md:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center">
-            <img
-              src="/assets/logo.png"
-              alt="Sipahioğlu Çekme Helva"
-              className="h-12 md:h-16 w-auto object-contain"
-            />
+            <DynamicLogo className="h-12 md:h-16 w-auto object-contain" />
           </Link>
 
           {/* Desktop Navigation */}
@@ -50,38 +76,53 @@ export default function Header() {
             {/* Categories Dropdown */}
             <div
               className="relative"
-              onMouseEnter={() => setIsCategoryDropdownOpen(true)}
-              onMouseLeave={() => setIsCategoryDropdownOpen(false)}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
             >
-              <button className="text-gray-700 hover:text-primary transition-colors flex items-center gap-1">
+              <button className="text-gray-700 hover:text-primary transition-colors flex items-center gap-1 py-2">
                 Ürünler
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-4 h-4 transition-transform ${isCategoryDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                 </svg>
               </button>
 
               {isCategoryDropdownOpen && (
-                <div className="absolute top-full left-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-100 py-2">
-                  <Link
-                    href="/urunler"
-                    className="block px-4 py-2 text-gray-700 hover:bg-cream hover:text-primary transition-colors"
-                  >
-                    Tüm Ürünler
-                  </Link>
-                  {categories.length > 0 && (
-                    <>
-                      <div className="border-t border-gray-100 my-1" />
-                      {categories.map((category) => (
-                        <Link
-                          key={category.id}
-                          href={`/kategori/${category.slug}`}
-                          className="block px-4 py-2 text-gray-700 hover:bg-cream hover:text-primary transition-colors"
-                        >
-                          {category.name}
-                        </Link>
-                      ))}
-                    </>
-                  )}
+                <div className="absolute top-full left-0 pt-1 w-56">
+                  <div className="bg-white rounded-lg shadow-lg border border-gray-100 py-2">
+                    <Link
+                      href="/urunler"
+                      className="block px-4 py-2 text-gray-700 hover:bg-cream hover:text-primary transition-colors"
+                    >
+                      Tüm Ürünler
+                    </Link>
+                    {categories.length > 0 && (
+                      <>
+                        <div className="border-t border-gray-100 my-1" />
+                        {categories.map((category) => {
+                          const subs = getSubcategories(category.id);
+                          return (
+                            <div key={category.id}>
+                              <Link
+                                href={`/kategori/${category.slug}`}
+                                className="block px-4 py-2 text-gray-700 hover:bg-cream hover:text-primary transition-colors font-medium"
+                              >
+                                {category.name}
+                              </Link>
+                              {subs.length > 0 && subs.map((sub) => (
+                                <Link
+                                  key={sub.id}
+                                  href={`/kategori/${sub.slug}`}
+                                  className="block px-4 py-1.5 pl-8 text-sm text-gray-500 hover:bg-cream hover:text-primary transition-colors"
+                                >
+                                  {sub.name}
+                                </Link>
+                              ))}
+                            </div>
+                          );
+                        })}
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -144,16 +185,30 @@ export default function Header() {
               >
                 Tüm Ürünler
               </Link>
-              {categories.map((category) => (
-                <Link
-                  key={category.id}
-                  href={`/kategori/${category.slug}`}
-                  className="px-4 py-2 pl-8 text-gray-600 hover:bg-cream rounded-lg text-sm"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                >
-                  {category.name}
-                </Link>
-              ))}
+              {categories.map((category) => {
+                const subs = getSubcategories(category.id);
+                return (
+                  <div key={category.id}>
+                    <Link
+                      href={`/kategori/${category.slug}`}
+                      className="px-4 py-2 pl-8 text-gray-600 hover:bg-cream rounded-lg text-sm block font-medium"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    >
+                      {category.name}
+                    </Link>
+                    {subs.length > 0 && subs.map((sub) => (
+                      <Link
+                        key={sub.id}
+                        href={`/kategori/${sub.slug}`}
+                        className="px-4 py-1.5 pl-12 text-gray-500 hover:bg-cream rounded-lg text-xs block"
+                        onClick={() => setIsMobileMenuOpen(false)}
+                      >
+                        {sub.name}
+                      </Link>
+                    ))}
+                  </div>
+                );
+              })}
               <Link
                 href="/hakkimizda"
                 className="px-4 py-2 text-gray-700 hover:bg-cream rounded-lg"

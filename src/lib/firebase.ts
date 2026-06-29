@@ -8,29 +8,27 @@ import {
   addDoc,
   updateDoc,
   deleteDoc,
+  setDoc,
   query,
   where,
-  orderBy,
   Timestamp,
 } from "firebase/firestore";
-import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
-  apiKey: "AIzaSyAaGguIv1OK9-BaMfp5yAbVBv9zmf9M8UQ",
-  authDomain: "sipahioglu-helva-c4aec.firebaseapp.com",
-  projectId: "sipahioglu-helva-c4aec",
-  storageBucket: "sipahioglu-helva-c4aec.firebasestorage.app",
-  messagingSenderId: "1032412472187",
-  appId: "1:1032412472187:web:4f8d7230911e88ac1c53de",
-  measurementId: "G-VDS8Z9DHE8",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
-// Initialize Firebase (prevent multiple initializations)
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 export const db = getFirestore(app);
-export const storage = getStorage(app);
 
-// Types
+// ==================== TYPES ====================
+
 export interface DbCategory {
   id: string;
   name: string;
@@ -60,7 +58,34 @@ export interface DbProduct {
   updated_at: Date;
 }
 
-// Helper to generate slug
+export interface DbBanner {
+  id: string;
+  title: string;
+  description: string;
+  image: string;
+  is_active: boolean;
+  order: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface DbHomepageImage {
+  id: string;
+  url: string;
+  alt: string;
+  type: "hero" | "gallery";
+  order: number;
+  is_active: boolean;
+  created_at: Date;
+}
+
+export interface SiteSettings {
+  logo_url: string;
+  updated_at: Date;
+}
+
+// ==================== HELPER ====================
+
 export function generateSlug(name: string): string {
   return name
     .toLowerCase()
@@ -81,15 +106,15 @@ export async function getCategories(): Promise<DbCategory[]> {
     const categoriesRef = collection(db, "categories");
     const snapshot = await getDocs(categoriesRef);
 
-    const categories = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      created_at: doc.data().created_at?.toDate() || new Date(),
+    const categories = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+      created_at: docSnap.data().created_at?.toDate() || new Date(),
     })) as DbCategory[];
 
     return categories.sort((a, b) => a.name.localeCompare(b.name, "tr"));
   } catch (error) {
-    console.error("Error fetching categories:", error);
+    console.error("[Firebase] Error fetching categories:", error);
     return [];
   }
 }
@@ -102,14 +127,14 @@ export async function getCategoryBySlug(slug: string): Promise<DbCategory | null
 
     if (snapshot.empty) return null;
 
-    const doc = snapshot.docs[0];
+    const docSnap = snapshot.docs[0];
     return {
-      id: doc.id,
-      ...doc.data(),
-      created_at: doc.data().created_at?.toDate() || new Date(),
+      id: docSnap.id,
+      ...docSnap.data(),
+      created_at: docSnap.data().created_at?.toDate() || new Date(),
     } as DbCategory;
   } catch (error) {
-    console.error("Error fetching category:", error);
+    console.error("[Firebase] Error fetching category:", error);
     return null;
   }
 }
@@ -124,13 +149,9 @@ export async function createCategory(
       created_at: Timestamp.now(),
     });
 
-    return {
-      id: docRef.id,
-      ...category,
-      created_at: new Date(),
-    };
+    return { id: docRef.id, ...category, created_at: new Date() };
   } catch (error) {
-    console.error("Error creating category:", error);
+    console.error("[Firebase] Error creating category:", error);
     throw new Error("Kategori oluşturulamadı");
   }
 }
@@ -143,7 +164,7 @@ export async function updateCategory(
     const docRef = doc(db, "categories", id);
     await updateDoc(docRef, category);
   } catch (error) {
-    console.error("Error updating category:", error);
+    console.error("[Firebase] Error updating category:", error);
     throw new Error("Kategori güncellenemedi");
   }
 }
@@ -153,7 +174,7 @@ export async function deleteCategory(id: string): Promise<void> {
     const docRef = doc(db, "categories", id);
     await deleteDoc(docRef);
   } catch (error) {
-    console.error("Error deleting category:", error);
+    console.error("[Firebase] Error deleting category:", error);
     throw new Error("Kategori silinemedi");
   }
 }
@@ -165,11 +186,12 @@ export async function getProducts(includeInactive = false): Promise<DbProduct[]>
     const productsRef = collection(db, "products");
     const snapshot = await getDocs(productsRef);
 
-    let products = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      created_at: doc.data().created_at?.toDate() || new Date(),
-      updated_at: doc.data().updated_at?.toDate() || new Date(),
+    let products = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+      images: docSnap.data().images || [],
+      created_at: docSnap.data().created_at?.toDate() || new Date(),
+      updated_at: docSnap.data().updated_at?.toDate() || new Date(),
     })) as DbProduct[];
 
     if (!includeInactive) {
@@ -178,7 +200,7 @@ export async function getProducts(includeInactive = false): Promise<DbProduct[]>
 
     return products.sort((a, b) => a.name.localeCompare(b.name, "tr"));
   } catch (error) {
-    console.error("Error fetching products:", error);
+    console.error("[Firebase] Error fetching products:", error);
     return [];
   }
 }
@@ -191,17 +213,18 @@ export async function getProductBySlug(slug: string): Promise<DbProduct | null> 
 
     if (snapshot.empty) return null;
 
-    const doc = snapshot.docs[0];
+    const docSnap = snapshot.docs[0];
     const product = {
-      id: doc.id,
-      ...doc.data(),
-      created_at: doc.data().created_at?.toDate() || new Date(),
-      updated_at: doc.data().updated_at?.toDate() || new Date(),
+      id: docSnap.id,
+      ...docSnap.data(),
+      images: docSnap.data().images || [],
+      created_at: docSnap.data().created_at?.toDate() || new Date(),
+      updated_at: docSnap.data().updated_at?.toDate() || new Date(),
     } as DbProduct;
 
     return product.is_active ? product : null;
   } catch (error) {
-    console.error("Error fetching product:", error);
+    console.error("[Firebase] Error fetching product:", error);
     return null;
   }
 }
@@ -212,18 +235,19 @@ export async function getProductsByCategory(categoryId: string): Promise<DbProdu
     const q = query(productsRef, where("category_id", "==", categoryId));
     const snapshot = await getDocs(q);
 
-    const products = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...doc.data(),
-      created_at: doc.data().created_at?.toDate() || new Date(),
-      updated_at: doc.data().updated_at?.toDate() || new Date(),
+    const products = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+      images: docSnap.data().images || [],
+      created_at: docSnap.data().created_at?.toDate() || new Date(),
+      updated_at: docSnap.data().updated_at?.toDate() || new Date(),
     })) as DbProduct[];
 
     return products
       .filter((p) => p.is_active === true)
       .sort((a, b) => a.name.localeCompare(b.name, "tr"));
   } catch (error) {
-    console.error("Error fetching products by category:", error);
+    console.error("[Firebase] Error fetching products by category:", error);
     return [];
   }
 }
@@ -235,20 +259,34 @@ export async function createProduct(
     const productsRef = collection(db, "products");
     const now = Timestamp.now();
 
-    const docRef = await addDoc(productsRef, {
-      ...product,
+    const productData = {
+      name: product.name,
+      slug: product.slug,
+      category_id: product.category_id,
+      subcategory: product.subcategory || null,
+      price: product.price || 0,
+      weight: product.weight || "",
+      short_description: product.short_description || "",
+      long_description: product.long_description || "",
+      ingredients: product.ingredients || "",
+      images: Array.isArray(product.images) ? product.images : [],
+      is_bestseller: product.is_bestseller || false,
+      is_new: product.is_new || false,
+      is_active: product.is_active !== false,
       created_at: now,
       updated_at: now,
-    });
+    };
+
+    const docRef = await addDoc(productsRef, productData);
 
     return {
       id: docRef.id,
-      ...product,
+      ...productData,
       created_at: new Date(),
       updated_at: new Date(),
     };
   } catch (error) {
-    console.error("Error creating product:", error);
+    console.error("[Firebase] Error creating product:", error);
     throw new Error("Ürün oluşturulamadı");
   }
 }
@@ -259,12 +297,18 @@ export async function updateProduct(
 ): Promise<void> {
   try {
     const docRef = doc(db, "products", id);
-    await updateDoc(docRef, {
+    const updateData: Record<string, unknown> = {
       ...product,
       updated_at: Timestamp.now(),
-    });
+    };
+
+    if (product.images !== undefined) {
+      updateData.images = Array.isArray(product.images) ? product.images : [];
+    }
+
+    await updateDoc(docRef, updateData);
   } catch (error) {
-    console.error("Error updating product:", error);
+    console.error("[Firebase] Error updating product:", error);
     throw new Error("Ürün güncellenemedi");
   }
 }
@@ -274,7 +318,7 @@ export async function deleteProduct(id: string): Promise<void> {
     const docRef = doc(db, "products", id);
     await deleteDoc(docRef);
   } catch (error) {
-    console.error("Error deleting product:", error);
+    console.error("[Firebase] Error deleting product:", error);
     throw new Error("Ürün silinemedi");
   }
 }
@@ -283,7 +327,199 @@ export async function toggleProductActive(id: string, isActive: boolean): Promis
   return updateProduct(id, { is_active: isActive });
 }
 
-// ==================== IMAGE UPLOAD (via imgbb API) ====================
+// ==================== BANNERS ====================
+
+export async function getBanners(includeInactive = false): Promise<DbBanner[]> {
+  try {
+    const bannersRef = collection(db, "banners");
+    const snapshot = await getDocs(bannersRef);
+
+    let banners = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+      created_at: docSnap.data().created_at?.toDate() || new Date(),
+      updated_at: docSnap.data().updated_at?.toDate() || new Date(),
+    })) as DbBanner[];
+
+    if (!includeInactive) {
+      banners = banners.filter((b) => b.is_active === true);
+    }
+
+    return banners.sort((a, b) => a.order - b.order);
+  } catch (error) {
+    console.error("[Firebase] Error fetching banners:", error);
+    return [];
+  }
+}
+
+export async function createBanner(
+  banner: Omit<DbBanner, "id" | "created_at" | "updated_at">
+): Promise<DbBanner> {
+  try {
+    const bannersRef = collection(db, "banners");
+    const now = Timestamp.now();
+
+    const docRef = await addDoc(bannersRef, {
+      ...banner,
+      created_at: now,
+      updated_at: now,
+    });
+
+    return { id: docRef.id, ...banner, created_at: new Date(), updated_at: new Date() };
+  } catch (error) {
+    console.error("[Firebase] Error creating banner:", error);
+    throw new Error("Banner oluşturulamadı");
+  }
+}
+
+export async function updateBanner(
+  id: string,
+  banner: Partial<DbBanner>
+): Promise<void> {
+  try {
+    const docRef = doc(db, "banners", id);
+    await updateDoc(docRef, {
+      ...banner,
+      updated_at: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error("[Firebase] Error updating banner:", error);
+    throw new Error("Banner güncellenemedi");
+  }
+}
+
+export async function deleteBanner(id: string): Promise<void> {
+  try {
+    const docRef = doc(db, "banners", id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.error("[Firebase] Error deleting banner:", error);
+    throw new Error("Banner silinemedi");
+  }
+}
+
+// ==================== HOMEPAGE IMAGES ====================
+
+export async function getHomepageImages(type?: "hero" | "gallery"): Promise<DbHomepageImage[]> {
+  try {
+    const imagesRef = collection(db, "homepage_images");
+    const snapshot = await getDocs(imagesRef);
+
+    let images = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+      created_at: docSnap.data().created_at?.toDate() || new Date(),
+    })) as DbHomepageImage[];
+
+    images = images.filter((img) => img.is_active === true);
+
+    if (type) {
+      images = images.filter((img) => img.type === type);
+    }
+
+    return images.sort((a, b) => a.order - b.order);
+  } catch (error) {
+    console.error("[Firebase] Error fetching homepage images:", error);
+    return [];
+  }
+}
+
+export async function getAllHomepageImages(): Promise<DbHomepageImage[]> {
+  try {
+    const imagesRef = collection(db, "homepage_images");
+    const snapshot = await getDocs(imagesRef);
+
+    const images = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+      created_at: docSnap.data().created_at?.toDate() || new Date(),
+    })) as DbHomepageImage[];
+
+    return images.sort((a, b) => a.order - b.order);
+  } catch (error) {
+    console.error("[Firebase] Error fetching homepage images:", error);
+    return [];
+  }
+}
+
+export async function createHomepageImage(
+  image: Omit<DbHomepageImage, "id" | "created_at">
+): Promise<DbHomepageImage> {
+  try {
+    const imagesRef = collection(db, "homepage_images");
+
+    const docRef = await addDoc(imagesRef, {
+      ...image,
+      created_at: Timestamp.now(),
+    });
+
+    return { id: docRef.id, ...image, created_at: new Date() };
+  } catch (error) {
+    console.error("[Firebase] Error creating homepage image:", error);
+    throw new Error("Görsel eklenemedi");
+  }
+}
+
+export async function updateHomepageImage(
+  id: string,
+  image: Partial<DbHomepageImage>
+): Promise<void> {
+  try {
+    const docRef = doc(db, "homepage_images", id);
+    await updateDoc(docRef, image);
+  } catch (error) {
+    console.error("[Firebase] Error updating homepage image:", error);
+    throw new Error("Görsel güncellenemedi");
+  }
+}
+
+export async function deleteHomepageImage(id: string): Promise<void> {
+  try {
+    const docRef = doc(db, "homepage_images", id);
+    await deleteDoc(docRef);
+  } catch (error) {
+    console.error("[Firebase] Error deleting homepage image:", error);
+    throw new Error("Görsel silinemedi");
+  }
+}
+
+// ==================== SITE SETTINGS ====================
+
+export async function getSiteSettings(): Promise<SiteSettings | null> {
+  try {
+    const docRef = doc(db, "settings", "site");
+    const docSnap = await getDoc(docRef);
+
+    if (!docSnap.exists()) return null;
+
+    return {
+      ...docSnap.data(),
+      updated_at: docSnap.data().updated_at?.toDate() || new Date(),
+    } as SiteSettings;
+  } catch (error) {
+    console.error("[Firebase] Error fetching site settings:", error);
+    return null;
+  }
+}
+
+export async function updateSiteSettings(settings: Partial<SiteSettings>): Promise<void> {
+  try {
+    const docRef = doc(db, "settings", "site");
+    await setDoc(
+      docRef,
+      {
+        ...settings,
+        updated_at: Timestamp.now(),
+      },
+      { merge: true }
+    );
+  } catch (error) {
+    console.error("[Firebase] Error updating site settings:", error);
+    throw new Error("Ayarlar güncellenemedi");
+  }
+}
+
+// ==================== IMAGE UPLOAD ====================
 
 export async function uploadImage(file: File): Promise<string> {
   try {
@@ -303,7 +539,7 @@ export async function uploadImage(file: File): Promise<string> {
 
     return result.url;
   } catch (error: unknown) {
-    console.error("Error uploading image:", error);
+    console.error("[Firebase] Error uploading image:", error);
     if (error instanceof Error) {
       throw error;
     }
@@ -321,11 +557,6 @@ export async function uploadCategoryImage(file: File, _categorySlug: string): Pr
 
 export async function deleteImage(_url: string): Promise<void> {
   // imgbb doesn't support programmatic deletion without delete URL
-  // This is a no-op for now
-  try {
-  } catch (error) {
-    console.error("Error deleting image:", error);
-  }
 }
 
 // ==================== TEST CONNECTION ====================
@@ -339,7 +570,7 @@ export async function testFirebaseConnection(): Promise<boolean> {
     if (error instanceof Error && error.message.includes("Missing or insufficient permissions")) {
       return true;
     }
-    console.error("Firebase connection test failed:", error);
+    console.error("[Firebase] Connection test failed:", error);
     return false;
   }
 }

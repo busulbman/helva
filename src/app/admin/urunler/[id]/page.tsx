@@ -13,6 +13,10 @@ import {
   DbProduct,
 } from "@/lib/firebase";
 
+function isValidImageUrl(url: string | null | undefined): url is string {
+  return typeof url === "string" && url.trim() !== "";
+}
+
 interface ImageUpload {
   id: string;
   file?: File;
@@ -375,11 +379,19 @@ export default function EditProductPage({
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-4">
             {images.map((img) => (
               <div key={img.id} className="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
-                <img
-                  src={img.preview}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                />
+                {isValidImageUrl(img.preview) ? (
+                  <img
+                    src={img.preview}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-gray-400">
+                    <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16" />
+                    </svg>
+                  </div>
+                )}
                 {img.uploading && (
                   <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-white"></div>

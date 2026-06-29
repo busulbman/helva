@@ -9,7 +9,7 @@ export function isAuthenticated(): boolean {
 }
 
 export function login(password: string): boolean {
-  const correctPassword = process.env.NEXT_PUBLIC_ADMIN_PASSWORD || "sipahioglu2024";
+  const correctPassword = process.env.ADMIN_PASSWORD || "sipahioglu2024";
 
   if (password === correctPassword) {
     Cookies.set(AUTH_COOKIE_NAME, AUTH_TOKEN, { expires: 7 });

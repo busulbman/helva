@@ -78,7 +78,7 @@ export default function ProductDetailPage({
             {/* Main Image */}
             <div className="aspect-square rounded-2xl overflow-hidden bg-cream mb-4 relative">
               <ProductImage
-                src={product.images[selectedImage] || ""}
+                src={product.images?.[selectedImage]}
                 alt={product.name}
                 fill
                 sizes="(max-width: 768px) 100vw, 50vw"

@@ -6,7 +6,6 @@ import {
   createCategory,
   updateCategory,
   deleteCategory,
-  uploadCategoryImage,
   generateSlug,
   DbCategory,
 } from "@/lib/firebase";
@@ -17,17 +16,13 @@ export default function CategoriesPage() {
   const [showModal, setShowModal] = useState(false);
   const [editingCategory, setEditingCategory] = useState<DbCategory | null>(null);
   const [saving, setSaving] = useState(false);
-  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    image: "",
     parent_id: "",
   });
-
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   useEffect(() => {
     fetchCategories();
@@ -54,14 +49,11 @@ export default function CategoriesPage() {
       setFormData({
         name: category.name,
         description: category.description,
-        image: category.image,
         parent_id: category.parent_id || "",
       });
-      setImagePreview(category.image || null);
     } else {
       setEditingCategory(null);
-      setFormData({ name: "", description: "", image: "", parent_id: "" });
-      setImagePreview(null);
+      setFormData({ name: "", description: "", parent_id: "" });
     }
     setShowModal(true);
   }
@@ -69,33 +61,8 @@ export default function CategoriesPage() {
   function closeModal() {
     setShowModal(false);
     setEditingCategory(null);
-    setFormData({ name: "", description: "", image: "", parent_id: "" });
-    setImagePreview(null);
+    setFormData({ name: "", description: "", parent_id: "" });
     setError(null);
-  }
-
-  async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Show preview immediately
-    const previewUrl = URL.createObjectURL(file);
-    setImagePreview(previewUrl);
-
-    setUploading(true);
-    setError(null);
-
-    try {
-      const slug = generateSlug(formData.name || "kategori");
-      const url = await uploadCategoryImage(file, slug);
-      setFormData((prev) => ({ ...prev, image: url }));
-    } catch (err) {
-      setError("Görsel yüklenemedi. Lütfen tekrar deneyin.");
-      setImagePreview(null);
-      console.error(err);
-    } finally {
-      setUploading(false);
-    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -109,7 +76,7 @@ export default function CategoriesPage() {
         name: formData.name,
         slug,
         description: formData.description,
-        image: formData.image,
+        image: "",
         parent_id: formData.parent_id || null,
       };
 
@@ -194,20 +161,10 @@ export default function CategoriesPage() {
               <div key={category.id}>
                 {/* Parent Category */}
                 <div className="p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                    {category.image ? (
-                      <img
-                        src={category.image}
-                        alt={category.name}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-gray-400">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                      </div>
-                    )}
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
+                    </svg>
                   </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="font-medium text-gray-900">{category.name}</h3>
@@ -236,20 +193,10 @@ export default function CategoriesPage() {
                 {/* Subcategories */}
                 {getSubcategories(category.id).map((sub) => (
                   <div key={sub.id} className="p-4 pl-12 flex items-center gap-4 bg-gray-50">
-                    <div className="w-10 h-10 bg-white rounded-lg overflow-hidden flex-shrink-0 border border-gray-200">
-                      {sub.image ? (
-                        <img
-                          src={sub.image}
-                          alt={sub.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-gray-300">
-                          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16" />
-                          </svg>
-                        </div>
-                      )}
+                    <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                      </svg>
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-gray-700">{sub.name}</h4>
@@ -345,44 +292,6 @@ export default function CategoriesPage() {
                 </select>
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Görsel
-                </label>
-                <div className="flex items-center gap-4">
-                  {(imagePreview || formData.image) && (
-                    <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden">
-                      <img
-                        src={imagePreview || formData.image}
-                        alt="Preview"
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  )}
-                  <label className="flex-1 border-2 border-dashed border-gray-300 rounded-lg p-4 text-center cursor-pointer hover:border-primary transition-colors">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleImageUpload}
-                      className="hidden"
-                    />
-                    {uploading ? (
-                      <div className="flex items-center justify-center gap-2 text-gray-500">
-                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-primary"></div>
-                        Yükleniyor...
-                      </div>
-                    ) : (
-                      <div className="text-gray-500">
-                        <svg className="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        Görsel Seç
-                      </div>
-                    )}
-                  </label>
-                </div>
-              </div>
-
               <div className="flex gap-3 pt-4">
                 <button
                   type="button"
@@ -393,7 +302,7 @@ export default function CategoriesPage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={saving || uploading}
+                  disabled={saving}
                   className="flex-1 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
                 >
                   {saving ? "Kaydediliyor..." : editingCategory ? "Güncelle" : "Ekle"}

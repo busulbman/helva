@@ -12,6 +12,10 @@ import {
   DbCategory,
 } from "@/lib/firebase";
 
+function isValidImageUrl(url: string | null | undefined): url is string {
+  return typeof url === "string" && url.trim() !== "";
+}
+
 export default function ProductsPage() {
   const [products, setProducts] = useState<DbProduct[]>([]);
   const [categories, setCategories] = useState<DbCategory[]>([]);
@@ -199,7 +203,7 @@ export default function ProductsPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-12 h-12 bg-gray-100 rounded-lg overflow-hidden flex-shrink-0">
-                          {product.images?.[0] ? (
+                          {isValidImageUrl(product.images?.[0]) ? (
                             <img
                               src={product.images[0]}
                               alt={product.name}

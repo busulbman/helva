@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { getSiteSettings } from "@/lib/firebase";
 
 interface ProductImageProps {
-  src: string;
+  src?: string | null;
   alt: string;
   fill?: boolean;
   width?: number;
@@ -14,7 +15,11 @@ interface ProductImageProps {
   priority?: boolean;
 }
 
-const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1558961363-fa8fdf82db35?w=600&q=80";
+const DEFAULT_FALLBACK = "/assets/logo.png";
+
+function isValidImageUrl(url: string | null | undefined): url is string {
+  return typeof url === "string" && url.trim() !== "" && !url.includes("unsplash.com");
+}
 
 export default function ProductImage({
   src,
@@ -26,13 +31,41 @@ export default function ProductImage({
   sizes,
   priority = false,
 }: ProductImageProps) {
-  const [imgSrc, setImgSrc] = useState(src);
+  const [fallbackImage, setFallbackImage] = useState(DEFAULT_FALLBACK);
+  const [imgSrc, setImgSrc] = useState(() => isValidImageUrl(src) ? src : DEFAULT_FALLBACK);
   const [hasError, setHasError] = useState(false);
+
+  useEffect(() => {
+    async function fetchAdminLogo() {
+      try {
+        const settings = await getSiteSettings();
+        if (isValidImageUrl(settings?.logo_url)) {
+          setFallbackImage(settings.logo_url);
+          if (!isValidImageUrl(src)) {
+            setImgSrc(settings.logo_url);
+          }
+        }
+      } catch (error) {
+        console.error("[ProductImage] Failed to fetch admin logo:", error);
+      }
+    }
+    fetchAdminLogo();
+  }, []);
+
+  useEffect(() => {
+    if (isValidImageUrl(src)) {
+      setImgSrc(src);
+      setHasError(false);
+    } else {
+      setImgSrc(fallbackImage);
+    }
+  }, [src, fallbackImage]);
 
   const handleError = () => {
     if (!hasError) {
       setHasError(true);
-      setImgSrc(FALLBACK_IMAGE);
+      setImgSrc(fallbackImage);
+      console.warn("[ProductImage] Image load failed, using fallback:", src);
     }
   };
 

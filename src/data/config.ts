@@ -3,9 +3,8 @@ export const siteConfig = {
   description: "Osmanlı'dan günümüze geleneksel lezzet - El yapımı çekme helva",
   slogan: "Osmanlı'dan Günümüze Geleneksel Lezzet",
 
-  // WhatsApp numarasını buraya ekleyin (ülke kodu ile, boşluksuz)
-  // Örnek: "905551234567"
-  whatsappNumber: "905551234567",
+  // WhatsApp numarası (ülke kodu ile, boşluksuz)
+  whatsappNumber: "905449792337",
 
   address: {
     street: "Nasrullah Camii karşısı, No: 11",

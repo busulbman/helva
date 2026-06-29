@@ -1,17 +1,18 @@
 import Link from "next/link";
-import { getCategories, getBestsellers } from "@/lib/data";
+import { getCategories, getProducts } from "@/lib/data";
+import { getBanners } from "@/lib/firebase";
 import { siteConfig } from "@/data/config";
 import CategoryCard from "@/components/CategoryCard";
 import ProductCard from "@/components/ProductCard";
-import ProductImage from "@/components/ProductImage";
+import BannerSection from "@/components/BannerSection";
 
 export const dynamic = "force-dynamic";
-export const revalidate = 60;
 
 export default async function HomePage() {
-  const [categories, bestsellers] = await Promise.all([
+  const [categories, allProducts, banners] = await Promise.all([
     getCategories(),
-    getBestsellers(),
+    getProducts(),
+    getBanners(),
   ]);
 
   return (
@@ -71,6 +72,9 @@ export default async function HomePage() {
         </div>
       </section>
 
+      {/* Banners Section */}
+      {banners.length > 0 && <BannerSection banners={banners} />}
+
       {/* Categories Section */}
       <section className="py-16 md:py-24 bg-cream">
         <div className="max-w-7xl mx-auto px-4">
@@ -91,15 +95,15 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Bestsellers Section */}
+      {/* All Products Section */}
       <section className="py-16 md:py-24">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-12">
             <div>
               <h2 className="font-serif text-3xl md:text-4xl font-bold text-gray-900 mb-2">
-                Çok Satanlar
+                Tüm Ürünler
               </h2>
-              <p className="text-gray-600">En beğenilen ürünlerimiz</p>
+              <p className="text-gray-600">Geleneksel lezzetlerimiz</p>
             </div>
             <Link
               href="/urunler"
@@ -113,19 +117,21 @@ export default async function HomePage() {
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {bestsellers.slice(0, 4).map((product) => (
+            {allProducts.slice(0, 8).map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
           </div>
 
-          <div className="text-center mt-8 sm:hidden">
-            <Link href="/urunler" className="btn-secondary inline-flex items-center gap-2">
-              Tümünü Gör
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </Link>
-          </div>
+          {allProducts.length > 8 && (
+            <div className="text-center mt-8">
+              <Link href="/urunler" className="btn-secondary inline-flex items-center gap-2">
+                Tüm Ürünleri Gör ({allProducts.length})
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
+            </div>
+          )}
         </div>
       </section>
 
@@ -177,13 +183,16 @@ export default async function HomePage() {
             </div>
 
             <div className="relative">
-              <div className="aspect-square rounded-2xl bg-cream overflow-hidden relative">
-                <ProductImage
-                  src="/images/products/sade-cekme-helva.jpg"
-                  alt="Geleneksel çekme helva üretimi"
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                />
+              <div className="aspect-square rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 overflow-hidden relative flex items-center justify-center">
+                <div className="text-center p-8">
+                  <div className="w-32 h-32 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
+                    <svg className="w-16 h-16 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </div>
+                  <p className="text-lg text-gray-700 font-medium">Geleneksel Üretim</p>
+                  <p className="text-sm text-gray-500">El emeği, göz nuru</p>
+                </div>
               </div>
               <div className="absolute -bottom-6 -left-6 bg-white rounded-xl shadow-lg p-6 hidden md:block">
                 <div className="text-4xl font-serif font-bold text-primary">70+</div>
@@ -240,13 +249,17 @@ export default async function HomePage() {
                 </Link>
               </div>
 
-              <div className="h-64 md:h-auto bg-cream relative overflow-hidden">
-                <ProductImage
-                  src="https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&q=80"
-                  alt="Sipahioğlu Çekme Helva mağazası"
-                  fill
-                  sizes="(max-width: 768px) 100vw, 50vw"
-                />
+              <div className="h-64 md:h-auto bg-gradient-to-br from-cream to-secondary relative overflow-hidden flex items-center justify-center">
+                <div className="text-center p-8">
+                  <div className="w-24 h-24 mx-auto mb-4 rounded-full bg-white/80 flex items-center justify-center shadow-lg">
+                    <svg className="w-12 h-12 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                  </div>
+                  <p className="text-lg text-gray-700 font-medium">Kastamonu</p>
+                  <p className="text-sm text-gray-500">1950'den beri</p>
+                </div>
               </div>
             </div>
           </div>

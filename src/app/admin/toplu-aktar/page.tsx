@@ -11,6 +11,10 @@ import {
   DbProduct,
 } from "@/lib/firebase";
 
+function isValidImageUrl(url: string | null | undefined): url is string {
+  return typeof url === "string" && url.trim() !== "";
+}
+
 interface ScannedProduct {
   fileName: string;
   productName: string;
@@ -390,11 +394,19 @@ export default function BulkImportPage() {
                 }`}
               >
                 <div className="relative aspect-square bg-gray-100">
-                  <img
-                    src={product.imagePath}
-                    alt={product.productName}
-                    className="w-full h-full object-cover"
-                  />
+                  {isValidImageUrl(product.imagePath) ? (
+                    <img
+                      src={product.imagePath}
+                      alt={product.productName}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-gray-400">
+                      <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16" />
+                      </svg>
+                    </div>
+                  )}
 
                   {product.status === "duplicate" ? (
                     <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-1 rounded">

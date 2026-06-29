@@ -1,20 +1,38 @@
+"use client";
+
 import Link from "next/link";
-import { categories } from "@/data/products";
+import { useState, useEffect } from "react";
 import { siteConfig, generateWhatsAppLink } from "@/data/config";
+import { getCategories, DbCategory } from "@/lib/firebase";
+import DynamicLogo from "./DynamicLogo";
 
 export default function Footer() {
+  const [categories, setCategories] = useState<DbCategory[]>([]);
+  const [allCategories, setAllCategories] = useState<DbCategory[]>([]);
+
+  useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const cats = await getCategories();
+        setAllCategories(cats);
+        setCategories(cats.filter(c => !c.parent_id));
+      } catch (error) {
+        console.error("Error fetching categories:", error);
+      }
+    }
+    fetchCategories();
+  }, []);
+
+  const getSubcategories = (parentId: string) =>
+    allCategories.filter(c => c.parent_id === parentId);
   return (
     <footer className="bg-primary text-white">
       <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
           {/* Brand */}
           <div>
-            <Link href="/" className="inline-block mb-4">
-              <img
-                src="/assets/logo.png"
-                alt="Sipahioğlu Çekme Helva"
-                className="h-16 w-auto object-contain brightness-0 invert"
-              />
+            <Link href="/" className="inline-block mb-4 bg-white/95 rounded-lg p-3">
+              <DynamicLogo className="h-14" />
             </Link>
             <p className="text-white/80 text-sm leading-relaxed">
               {siteConfig.slogan}. Yılların tecrübesiyle, geleneksel tariflerle
@@ -26,16 +44,33 @@ export default function Footer() {
           <div>
             <h4 className="font-serif text-lg font-semibold mb-4">Kategoriler</h4>
             <ul className="space-y-2">
-              {categories.map((category) => (
-                <li key={category.id}>
-                  <Link
-                    href={`/kategori/${category.slug}`}
-                    className="text-white/80 hover:text-accent transition-colors text-sm"
-                  >
-                    {category.name}
-                  </Link>
-                </li>
-              ))}
+              {categories.map((category) => {
+                const subs = getSubcategories(category.id);
+                return (
+                  <li key={category.id}>
+                    <Link
+                      href={`/kategori/${category.slug}`}
+                      className="text-white/80 hover:text-accent transition-colors text-sm font-medium"
+                    >
+                      {category.name}
+                    </Link>
+                    {subs.length > 0 && (
+                      <ul className="mt-1 ml-3 space-y-1">
+                        {subs.map((sub) => (
+                          <li key={sub.id}>
+                            <Link
+                              href={`/kategori/${sub.slug}`}
+                              className="text-white/60 hover:text-accent transition-colors text-xs"
+                            >
+                              {sub.name}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
 
