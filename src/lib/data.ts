@@ -132,10 +132,50 @@ export async function getProductsByCategory(categorySlug: string): Promise<Displ
   try {
     const dbCategories = await getDbCategories();
     const category = dbCategories.find((c) => c.slug === categorySlug);
+
     if (category) {
-      const dbProducts = await getDbProductsByCategory(category.id);
-      return dbProducts.map((p) => mapDbProductToDisplay(p, dbCategories));
+      // If it's a parent category, get all products in this category
+      if (!category.parent_id) {
+        const dbProducts = await getDbProductsByCategory(category.id);
+        return dbProducts.map((p) => mapDbProductToDisplay(p, dbCategories));
+      }
+
+      // If it's a subcategory, get products from parent category filtered by subcategory
+      const parentCategory = dbCategories.find((c) => c.id === category.parent_id);
+      if (parentCategory) {
+        const dbProducts = await getDbProductsByCategory(parentCategory.id);
+        // Filter by subcategory - normalize slugs for comparison
+        const normalizeSlug = (s: string | null) => s?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+        const targetSlug = normalizeSlug(categorySlug);
+        const targetName = normalizeSlug(category.name);
+
+        const filteredProducts = dbProducts.filter((p) => {
+          const productSubSlug = normalizeSlug(p.subcategory);
+          return productSubSlug === targetSlug ||
+                 productSubSlug === targetName ||
+                 productSubSlug.includes(targetSlug) ||
+                 targetSlug.includes(productSubSlug);
+        });
+        return filteredProducts.map((p) => mapDbProductToDisplay(p, dbCategories));
+      }
     }
+
+    // Fallback: try to find by subcategory field directly in all products
+    const allProducts = await getDbProducts(false);
+    const normalizeSlug = (s: string | null) => s?.toLowerCase().replace(/[^a-z0-9]/g, '') || '';
+    const targetSlug = normalizeSlug(categorySlug);
+
+    const matchingProducts = allProducts.filter((p) => {
+      const productSubSlug = normalizeSlug(p.subcategory);
+      return productSubSlug === targetSlug ||
+             productSubSlug.includes(targetSlug) ||
+             targetSlug.includes(productSubSlug);
+    });
+
+    if (matchingProducts.length > 0) {
+      return matchingProducts.map((p) => mapDbProductToDisplay(p, dbCategories));
+    }
+
     return [];
   } catch (error) {
     console.error("Firebase error:", error);

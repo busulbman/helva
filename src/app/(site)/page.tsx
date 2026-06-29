@@ -182,21 +182,10 @@ export default async function HomePage() {
               </Link>
             </div>
 
-            <div className="relative">
-              <div className="aspect-square rounded-2xl bg-gradient-to-br from-primary/10 to-accent/10 overflow-hidden relative flex items-center justify-center">
-                <div className="text-center p-8">
-                  <div className="w-32 h-32 mx-auto mb-4 rounded-full bg-primary/10 flex items-center justify-center">
-                    <svg className="w-16 h-16 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
-                  </div>
-                  <p className="text-lg text-gray-700 font-medium">Geleneksel Üretim</p>
-                  <p className="text-sm text-gray-500">El emeği, göz nuru</p>
-                </div>
-              </div>
-              <div className="absolute -bottom-6 -left-6 bg-white rounded-xl shadow-lg p-6 hidden md:block">
-                <div className="text-4xl font-serif font-bold text-primary">70+</div>
-                <div className="text-gray-600 text-sm">Yıllık Tecrübe</div>
+            <div className="hidden md:block">
+              <div className="bg-white rounded-xl shadow-lg p-6 inline-block">
+                <div className="text-5xl font-serif font-bold text-primary">70+</div>
+                <div className="text-gray-600">Yıllık Tecrübe</div>
               </div>
             </div>
           </div>

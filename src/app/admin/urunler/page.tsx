@@ -210,10 +210,12 @@ export default function ProductsPage() {
                               className="w-full h-full object-cover"
                             />
                           ) : (
-                            <div className="w-full h-full flex items-center justify-center text-gray-400">
-                              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16" />
-                              </svg>
+                            <div className="w-full h-full flex items-center justify-center bg-cream">
+                              <img
+                                src="/assets/logo.png"
+                                alt="Logo"
+                                className="w-8 h-8 object-contain opacity-50"
+                              />
                             </div>
                           )}
                         </div>
