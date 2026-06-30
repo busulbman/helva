@@ -7,6 +7,7 @@ import {
   updateCategory,
   deleteCategory,
   generateSlug,
+  updateCategorySortOrder,
   DbCategory,
 } from "@/lib/firebase";
 
@@ -17,6 +18,7 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<DbCategory | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [movingId, setMovingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     name: "",
@@ -109,9 +111,67 @@ export default function CategoriesPage() {
     }
   }
 
+  async function handleMoveCategory(category: DbCategory, direction: "up" | "down") {
+    setMovingId(category.id);
+    setError(null);
+
+    try {
+      const isParent = !category.parent_id;
+      const siblings = isParent
+        ? categories.filter((c) => !c.parent_id)
+        : categories.filter((c) => c.parent_id === category.parent_id);
+
+      const currentIndex = siblings.findIndex((c) => c.id === category.id);
+      const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+
+      if (targetIndex < 0 || targetIndex >= siblings.length) {
+        setMovingId(null);
+        return;
+      }
+
+      const targetCategory = siblings[targetIndex];
+      const currentOrder = category.sort_order ?? 999;
+      const targetOrder = targetCategory.sort_order ?? 999;
+
+      await updateCategorySortOrder(category.id, targetOrder);
+      await updateCategorySortOrder(targetCategory.id, currentOrder);
+
+      await fetchCategories();
+    } catch (err) {
+      setError("Sıralama güncellenirken hata oluştu.");
+      console.error("Error moving category:", err);
+    } finally {
+      setMovingId(null);
+    }
+  }
+
+  async function handleInitializeSortOrders() {
+    setError(null);
+    try {
+      const parentCategories = categories.filter((c) => !c.parent_id);
+      for (let i = 0; i < parentCategories.length; i++) {
+        await updateCategorySortOrder(parentCategories[i].id, i * 10);
+      }
+
+      for (const parent of parentCategories) {
+        const subs = categories.filter((c) => c.parent_id === parent.id);
+        for (let i = 0; i < subs.length; i++) {
+          await updateCategorySortOrder(subs[i].id, i * 10);
+        }
+      }
+
+      await fetchCategories();
+    } catch (err) {
+      setError("Sıralama başlatılırken hata oluştu.");
+      console.error("Error initializing sort orders:", err);
+    }
+  }
+
   const parentCategories = categories.filter((c) => !c.parent_id);
   const getSubcategories = (parentId: string) =>
     categories.filter((c) => c.parent_id === parentId);
+
+  const needsInitialization = categories.some((c) => c.sort_order === undefined || c.sort_order === 999);
 
   if (loading) {
     return (
@@ -126,7 +186,7 @@ export default function CategoriesPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl md:text-3xl font-serif font-bold text-gray-900">Kategoriler</h1>
-          <p className="text-gray-600 mt-1">Ürün kategorilerinizi yönetin</p>
+          <p className="text-gray-600 mt-1">Ürün kategorilerinizi yönetin ve sıralayın</p>
         </div>
         <button
           onClick={() => openModal()}
@@ -146,6 +206,21 @@ export default function CategoriesPage() {
         </div>
       )}
 
+      {/* Initialize Sort Orders Button */}
+      {needsInitialization && categories.length > 0 && (
+        <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center justify-between">
+          <p className="text-yellow-800 text-sm">
+            Bazı kategorilerde sıralama değeri bulunmuyor. Sıralama sistemini başlatmak ister misiniz?
+          </p>
+          <button
+            onClick={handleInitializeSortOrders}
+            className="ml-4 px-3 py-1.5 bg-yellow-600 text-white text-sm rounded-lg hover:bg-yellow-700 transition-colors"
+          >
+            Sıralamayı Başlat
+          </button>
+        </div>
+      )}
+
       {/* Categories List */}
       <div className="bg-white rounded-xl shadow-sm">
         {categories.length === 0 ? (
@@ -157,73 +232,126 @@ export default function CategoriesPage() {
           </div>
         ) : (
           <div className="divide-y divide-gray-100">
-            {parentCategories.map((category) => (
-              <div key={category.id}>
-                {/* Parent Category */}
-                <div className="p-4 flex items-center gap-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
-                    <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
-                    </svg>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-gray-900">{category.name}</h3>
-                    <p className="text-sm text-gray-500 truncate">{category.description}</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => openModal(category)}
-                      className="p-2 text-gray-400 hover:text-primary"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                      </svg>
-                    </button>
-                    <button
-                      onClick={() => handleDelete(category.id)}
-                      className="p-2 text-gray-400 hover:text-red-600"
-                    >
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
+            {parentCategories.map((category, catIndex) => {
+              const subs = getSubcategories(category.id);
+              return (
+                <div key={category.id}>
+                  {/* Parent Category */}
+                  <div className="p-4 flex items-center gap-4">
+                    {/* Sort Order Buttons */}
+                    <div className="flex flex-col gap-1">
+                      <button
+                        onClick={() => handleMoveCategory(category, "up")}
+                        disabled={catIndex === 0 || movingId === category.id}
+                        className="p-1 text-gray-400 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Yukarı Taşı"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                        </svg>
+                      </button>
+                      <button
+                        onClick={() => handleMoveCategory(category, "down")}
+                        disabled={catIndex === parentCategories.length - 1 || movingId === category.id}
+                        className="p-1 text-gray-400 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                        title="Aşağı Taşı"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                    </div>
 
-                {/* Subcategories */}
-                {getSubcategories(category.id).map((sub) => (
-                  <div key={sub.id} className="p-4 pl-12 flex items-center gap-4 bg-gray-50">
-                    <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                      <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                    <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0">
+                      <svg className="w-6 h-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6z" />
                       </svg>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-gray-700">{sub.name}</h4>
-                      <p className="text-sm text-gray-500 truncate">{sub.description}</p>
+                      <h3 className="font-medium text-gray-900">{category.name}</h3>
+                      <p className="text-sm text-gray-500 truncate">{category.description}</p>
+                      <span className="text-xs text-gray-400">Sıra: {category.sort_order ?? 999}</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
-                        onClick={() => openModal(sub)}
+                        onClick={() => openModal(category)}
                         className="p-2 text-gray-400 hover:text-primary"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                         </svg>
                       </button>
                       <button
-                        onClick={() => handleDelete(sub.id)}
+                        onClick={() => handleDelete(category.id)}
                         className="p-2 text-gray-400 hover:text-red-600"
                       >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                         </svg>
                       </button>
                     </div>
                   </div>
-                ))}
-              </div>
-            ))}
+
+                  {/* Subcategories */}
+                  {subs.map((sub, subIndex) => (
+                    <div key={sub.id} className="p-4 pl-12 flex items-center gap-4 bg-gray-50">
+                      {/* Sort Order Buttons for Subcategories */}
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => handleMoveCategory(sub, "up")}
+                          disabled={subIndex === 0 || movingId === sub.id}
+                          className="p-1 text-gray-400 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Yukarı Taşı"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleMoveCategory(sub, "down")}
+                          disabled={subIndex === subs.length - 1 || movingId === sub.id}
+                          className="p-1 text-gray-400 hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed"
+                          title="Aşağı Taşı"
+                        >
+                          <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </button>
+                      </div>
+
+                      <div className="w-10 h-10 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                        <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-medium text-gray-700">{sub.name}</h4>
+                        <p className="text-sm text-gray-500 truncate">{sub.description}</p>
+                        <span className="text-xs text-gray-400">Sıra: {sub.sort_order ?? 999}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openModal(sub)}
+                          className="p-2 text-gray-400 hover:text-primary"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => handleDelete(sub.id)}
+                          className="p-2 text-gray-400 hover:text-red-600"
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

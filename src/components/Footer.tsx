@@ -24,7 +24,13 @@ export default function Footer() {
   }, []);
 
   const getSubcategories = (parentId: string) =>
-    allCategories.filter(c => c.parent_id === parentId);
+    allCategories
+      .filter(c => c.parent_id === parentId)
+      .sort((a, b) => {
+        const orderDiff = (a.sort_order ?? 999) - (b.sort_order ?? 999);
+        if (orderDiff !== 0) return orderDiff;
+        return a.name.localeCompare(b.name, "tr");
+      });
   return (
     <footer className="bg-primary text-white">
       <div className="max-w-7xl mx-auto px-4 py-12 md:py-16">

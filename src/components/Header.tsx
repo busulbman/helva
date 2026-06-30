@@ -11,6 +11,7 @@ interface Category {
   name: string;
   slug: string;
   parent_id: string | null;
+  sort_order?: number;
 }
 
 export default function Header() {
@@ -56,7 +57,13 @@ export default function Header() {
   }, []);
 
   const getSubcategories = (parentId: string) =>
-    allCategories.filter(c => c.parent_id === parentId);
+    allCategories
+      .filter(c => c.parent_id === parentId)
+      .sort((a, b) => {
+        const orderDiff = (a.sort_order ?? 999) - (b.sort_order ?? 999);
+        if (orderDiff !== 0) return orderDiff;
+        return a.name.localeCompare(b.name, "tr");
+      });
 
   return (
     <header className="bg-white shadow-sm sticky top-0 z-50">

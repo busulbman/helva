@@ -36,7 +36,16 @@ export interface DbCategory {
   description: string;
   image: string;
   parent_id: string | null;
+  sort_order: number;
   created_at: Date;
+}
+
+export interface DbSubcategoryOrder {
+  id: string;
+  category_id: string;
+  subcategory_name: string;
+  subcategory_slug: string;
+  sort_order: number;
 }
 
 export interface DbProduct {
@@ -109,10 +118,15 @@ export async function getCategories(): Promise<DbCategory[]> {
     const categories = snapshot.docs.map((docSnap) => ({
       id: docSnap.id,
       ...docSnap.data(),
+      sort_order: docSnap.data().sort_order ?? 999,
       created_at: docSnap.data().created_at?.toDate() || new Date(),
     })) as DbCategory[];
 
-    return categories.sort((a, b) => a.name.localeCompare(b.name, "tr"));
+    return categories.sort((a, b) => {
+      const orderDiff = (a.sort_order ?? 999) - (b.sort_order ?? 999);
+      if (orderDiff !== 0) return orderDiff;
+      return a.name.localeCompare(b.name, "tr");
+    });
   } catch (error) {
     console.error("[Firebase] Error fetching categories:", error);
     return [];
@@ -140,16 +154,17 @@ export async function getCategoryBySlug(slug: string): Promise<DbCategory | null
 }
 
 export async function createCategory(
-  category: Omit<DbCategory, "id" | "created_at">
+  category: Omit<DbCategory, "id" | "created_at" | "sort_order"> & { sort_order?: number }
 ): Promise<DbCategory> {
   try {
     const categoriesRef = collection(db, "categories");
     const docRef = await addDoc(categoriesRef, {
       ...category,
+      sort_order: category.sort_order ?? 999,
       created_at: Timestamp.now(),
     });
 
-    return { id: docRef.id, ...category, created_at: new Date() };
+    return { id: docRef.id, ...category, sort_order: category.sort_order ?? 999, created_at: new Date() };
   } catch (error) {
     console.error("[Firebase] Error creating category:", error);
     throw new Error("Kategori oluşturulamadı");
@@ -557,6 +572,71 @@ export async function uploadCategoryImage(file: File, _categorySlug: string): Pr
 
 export async function deleteImage(_url: string): Promise<void> {
   // imgbb doesn't support programmatic deletion without delete URL
+}
+
+// ==================== SUBCATEGORY ORDERS ====================
+
+export async function getSubcategoryOrders(categoryId?: string): Promise<DbSubcategoryOrder[]> {
+  try {
+    const ordersRef = collection(db, "subcategory_orders");
+    const snapshot = await getDocs(ordersRef);
+
+    let orders = snapshot.docs.map((docSnap) => ({
+      id: docSnap.id,
+      ...docSnap.data(),
+    })) as DbSubcategoryOrder[];
+
+    if (categoryId) {
+      orders = orders.filter((o) => o.category_id === categoryId);
+    }
+
+    return orders.sort((a, b) => (a.sort_order ?? 999) - (b.sort_order ?? 999));
+  } catch (error) {
+    console.error("[Firebase] Error fetching subcategory orders:", error);
+    return [];
+  }
+}
+
+export async function setSubcategoryOrder(
+  categoryId: string,
+  subcategorySlug: string,
+  subcategoryName: string,
+  sortOrder: number
+): Promise<void> {
+  try {
+    const ordersRef = collection(db, "subcategory_orders");
+    const q = query(
+      ordersRef,
+      where("category_id", "==", categoryId),
+      where("subcategory_slug", "==", subcategorySlug)
+    );
+    const snapshot = await getDocs(q);
+
+    if (snapshot.empty) {
+      await addDoc(ordersRef, {
+        category_id: categoryId,
+        subcategory_name: subcategoryName,
+        subcategory_slug: subcategorySlug,
+        sort_order: sortOrder,
+      });
+    } else {
+      const docRef = doc(db, "subcategory_orders", snapshot.docs[0].id);
+      await updateDoc(docRef, { sort_order: sortOrder, subcategory_name: subcategoryName });
+    }
+  } catch (error) {
+    console.error("[Firebase] Error setting subcategory order:", error);
+    throw new Error("Alt kategori sırası güncellenemedi");
+  }
+}
+
+export async function updateCategorySortOrder(id: string, sortOrder: number): Promise<void> {
+  try {
+    const docRef = doc(db, "categories", id);
+    await updateDoc(docRef, { sort_order: sortOrder });
+  } catch (error) {
+    console.error("[Firebase] Error updating category sort order:", error);
+    throw new Error("Kategori sırası güncellenemedi");
+  }
 }
 
 // ==================== TEST CONNECTION ====================

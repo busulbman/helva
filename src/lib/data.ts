@@ -3,6 +3,7 @@ import {
   getProducts as getDbProducts,
   getProductBySlug as getDbProductBySlug,
   getProductsByCategory as getDbProductsByCategory,
+  getSubcategoryOrders,
   DbCategory,
   DbProduct,
 } from "./firebase";
@@ -61,6 +62,11 @@ function mapDbProductToDisplay(product: DbProduct, categories: DbCategory[]): Di
 function mapDbCategoryToDisplay(category: DbCategory, allCategories: DbCategory[]): DisplayCategory {
   const subcategories = allCategories
     .filter((c) => c.parent_id === category.id)
+    .sort((a, b) => {
+      const orderDiff = (a.sort_order ?? 999) - (b.sort_order ?? 999);
+      if (orderDiff !== 0) return orderDiff;
+      return a.name.localeCompare(b.name, "tr");
+    })
     .map((c) => ({ name: c.name, slug: c.slug }));
 
   return {
