@@ -21,8 +21,8 @@ export const siteConfig = {
   },
 
   social: {
-    instagram: "https://instagram.com/sipahioglucekmehelva",
-    facebook: "https://facebook.com/sipahioglucekmehelva",
+    instagram: "https://www.instagram.com/sipahioglu_yoreselurun?igsh=MTBzOTVqZnYwZzE2MA%3D%3D&utm_source=qr",
+    // facebook: "https://facebook.com/sipahioglucekmehelva",
   },
 
   // Google Maps embed URL - Nasrullah Camii Kastamonu

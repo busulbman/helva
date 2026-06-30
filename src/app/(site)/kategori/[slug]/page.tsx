@@ -6,6 +6,19 @@ import ProductCard from "@/components/ProductCard";
 
 interface PageProps {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ subcategory?: string }>;
+}
+
+function normalizeForComparison(str: string): string {
+  return str
+    .toLowerCase()
+    .replace(/ç/g, 'c')
+    .replace(/ğ/g, 'g')
+    .replace(/ı/g, 'i')
+    .replace(/ö/g, 'o')
+    .replace(/ş/g, 's')
+    .replace(/ü/g, 'u')
+    .replace(/[^a-z0-9]/g, '');
 }
 
 export const dynamic = "force-dynamic";
@@ -27,8 +40,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   };
 }
 
-export default async function CategoryPage({ params }: PageProps) {
+export default async function CategoryPage({ params, searchParams }: PageProps) {
   const { slug } = await params;
+  const { subcategory: activeSubcategory } = await searchParams;
+
   const [category, categories, allProducts] = await Promise.all([
     getCategoryBySlug(slug),
     getCategories(),
@@ -39,7 +54,19 @@ export default async function CategoryPage({ params }: PageProps) {
     notFound();
   }
 
-  const categoryProducts = await getProductsByCategory(slug);
+  let categoryProducts = await getProductsByCategory(slug);
+
+  // Filter by subcategory if selected
+  if (activeSubcategory) {
+    const normalizedActive = normalizeForComparison(activeSubcategory);
+    categoryProducts = categoryProducts.filter((product) => {
+      if (!product.subcategory) return false;
+      const normalizedProductSub = normalizeForComparison(product.subcategory);
+      return normalizedProductSub === normalizedActive ||
+             normalizedProductSub.includes(normalizedActive) ||
+             normalizedActive.includes(normalizedProductSub);
+    });
+  }
 
   return (
     <div className="py-8 md:py-12">
@@ -91,17 +118,42 @@ export default async function CategoryPage({ params }: PageProps) {
                       {isActive && cat.subcategories && cat.subcategories.length > 0 && (
                         <ul className="ml-4 mt-1 space-y-1">
                           {cat.subcategories.map((sub) => {
-                            const subCount = allProducts.filter(
-                              p => p.categorySlug === cat.slug && p.subcategory === sub.slug
-                            ).length;
+                            const normalizedSubSlug = normalizeForComparison(sub.slug);
+                            const subCount = allProducts.filter((p) => {
+                              if (p.categorySlug !== cat.slug || !p.subcategory) return false;
+                              const normalizedProductSub = normalizeForComparison(p.subcategory);
+                              return normalizedProductSub === normalizedSubSlug ||
+                                     normalizedProductSub.includes(normalizedSubSlug) ||
+                                     normalizedSubSlug.includes(normalizedProductSub);
+                            }).length;
+                            const isSubActive = activeSubcategory &&
+                              normalizeForComparison(activeSubcategory) === normalizedSubSlug;
                             return (
                               <li key={sub.slug}>
-                                <span className="block px-3 py-1 text-sm text-white/80">
+                                <Link
+                                  href={`/kategori/${cat.slug}?subcategory=${sub.slug}`}
+                                  className={`block px-3 py-1.5 text-sm rounded-md transition-colors ${
+                                    isSubActive
+                                      ? "bg-primary text-white font-medium"
+                                      : "text-gray-900 hover:text-primary hover:bg-cream"
+                                  }`}
+                                >
                                   {sub.name} ({subCount})
-                                </span>
+                                </Link>
                               </li>
                             );
                           })}
+                          {/* "Tümü" link to clear subcategory filter */}
+                          {activeSubcategory && (
+                            <li>
+                              <Link
+                                href={`/kategori/${cat.slug}`}
+                                className="block px-3 py-1.5 text-sm text-gray-600 hover:text-primary hover:bg-cream rounded-md transition-colors"
+                              >
+                                ← Tümünü Göster
+                              </Link>
+                            </li>
+                          )}
                         </ul>
                       )}
                     </li>
@@ -117,6 +169,14 @@ export default async function CategoryPage({ params }: PageProps) {
             <div className="mb-8">
               <h1 className="font-serif text-2xl md:text-3xl font-bold text-gray-900 mb-2">
                 {category.name}
+                {activeSubcategory && category.subcategories && (
+                  <span className="text-primary">
+                    {" - "}
+                    {category.subcategories.find(
+                      (s) => normalizeForComparison(s.slug) === normalizeForComparison(activeSubcategory)
+                    )?.name || activeSubcategory}
+                  </span>
+                )}
               </h1>
               <p className="text-gray-600">{category.description}</p>
               <span className="text-sm text-gray-500 mt-2 block">

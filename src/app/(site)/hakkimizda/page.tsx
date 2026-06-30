@@ -48,16 +48,13 @@ export default function AboutPage() {
             Geleneğin Mirası
           </h2>
           <p className="text-gray-700 leading-relaxed mb-6">
-            Sipahioğlu Çekme Helva, 1950'li yıllardan bu yana Kastamonu'nun geleneksel lezzetlerini
-            yaşatmaktadır. Dedelerimizden miras kalan tarifler ve üretim teknikleri, bugün de aynı
-            özenle devam ettirilmektedir.
+            Geleneğin Mirası
+
+Sipahioğlu Çekme Helva, 1950’li yıllardan bu yana Kastamonu’nun geleneksel lezzetlerini yaşatmaktadır. Dedelerimizden miras kalan tarifler ve üretim teknikleri, bugün de aynı özenle devam ettirilmektedir.
           </p>
 
           <p className="text-gray-700 leading-relaxed mb-6">
-            Çekme helva, Osmanlı mutfağının en değerli tatlılarından biridir. Tahin, şeker ve un'un
-            ustalıkla bir araya getirilmesiyle elde edilen bu eşsiz lezzet, sabırla ve özenle
-            "çekilerek" hazırlanır. Bu işlem, ürüne karakteristik ipeksi dokusunu ve eşsiz tadını
-            kazandırır.
+            Çekme helva, Kastamonu’nun en özel ve köklü tatlılarından biridir. Şeker, un ve yağın ustalıkla bir araya getirilmesiyle hazırlanan bu eşsiz lezzet, sabırla ve özenle “çekilerek” yapılır. Bu geleneksel işlem, ürüne karakteristik lifli dokusunu, hafif yapısını ve kendine özgü tadını kazandırır.
           </p>
 
           <div className="grid md:grid-cols-2 gap-6 my-12">
